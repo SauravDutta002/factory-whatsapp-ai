@@ -47,3 +47,8 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Cache directories (including Puppeteer's Chrome binaries)
+.cache/
+backend/.cache/
+**/.cache/

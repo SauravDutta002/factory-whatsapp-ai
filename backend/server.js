@@ -1,8 +1,10 @@
+const path = require('path');
+process.env.PUPPETEER_CACHE_DIR = path.join(__dirname, '.cache', 'puppeteer');
+
 const express = require('express');
 const cors = require('cors');
 const { google } = require('googleapis');
 const fs = require('fs');
-const path = require('path');
 const { Pool } = require('pg');
 require('dotenv').config();
 
@@ -51,6 +53,23 @@ const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
+
+async function ensureWhatsappGroupsTable() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS whatsapp_groups (
+                id SERIAL PRIMARY KEY,
+                group_id VARCHAR(100) UNIQUE,
+                group_name VARCHAR(255),
+                active BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        console.log('Database table "whatsapp_groups" verified/created successfully.');
+    } catch (err) {
+        console.error('Error verifying/creating "whatsapp_groups" table:', err);
+    }
+}
 
 // =============================================================================
 // WhatsApp Bot & AI Helper Functions
@@ -1063,6 +1082,81 @@ app.get('/api/whatsapp/status', (req, res) => {
     res.json(whatsappStatus);
 });
 
+app.get('/api/whatsapp/groups', async (req, res) => {
+    try {
+        // 1. Get groups from DB
+        const dbResult = await pool.query('SELECT * FROM whatsapp_groups');
+        const dbGroups = dbResult.rows;
+
+        // Map to easily look up active status and name from DB
+        const dbMap = new Map();
+        dbGroups.forEach(g => {
+            dbMap.set(g.group_id, { name: g.group_name, active: g.active });
+        });
+
+        let combinedGroups = [];
+
+        // 2. Get live chats if connected
+        if (whatsappStatus.status === 'connected') {
+            try {
+                const chats = await whatsappClient.getChats();
+                const groupChats = chats.filter(c => c.isGroup);
+                
+                groupChats.forEach(chat => {
+                    const dbEntry = dbMap.get(chat.id._serialized);
+                    combinedGroups.push({
+                        id: chat.id._serialized,
+                        name: chat.name || dbEntry?.name || 'Unnamed Group',
+                        active: dbEntry ? dbEntry.active : false
+                    });
+                    // Remove from map to keep track of what's already merged
+                    dbMap.delete(chat.id._serialized);
+                });
+            } catch (clientErr) {
+                console.error('Error fetching live chats from WhatsApp client:', clientErr);
+            }
+        }
+
+        // 3. For anything remaining in the DB (historical groups not in recent chats)
+        dbMap.forEach((val, key) => {
+            combinedGroups.push({
+                id: key,
+                name: val.name || 'Unnamed Group',
+                active: val.active
+            });
+        });
+
+        res.json(combinedGroups);
+    } catch (err) {
+        console.error('Error in GET /api/whatsapp/groups:', err);
+        res.status(500).json({ error: 'Failed to retrieve WhatsApp groups' });
+    }
+});
+
+app.post('/api/whatsapp/groups/active', async (req, res) => {
+    try {
+        const { groupId, active, name } = req.body;
+        if (!groupId) {
+            return res.status(400).json({ error: 'groupId is required' });
+        }
+        const targetActive = !!active;
+        const targetName = name || 'Unnamed Group';
+
+        const queryText = `
+            INSERT INTO whatsapp_groups (group_id, group_name, active)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (group_id) 
+            DO UPDATE SET active = EXCLUDED.active, group_name = EXCLUDED.group_name
+            RETURNING *
+        `;
+        const result = await pool.query(queryText, [groupId, targetName, targetActive]);
+        res.json({ success: true, group: result.rows[0] });
+    } catch (err) {
+        console.error('Error in POST /api/whatsapp/groups/active:', err);
+        res.status(500).json({ error: 'Failed to update WhatsApp group active state' });
+    }
+});
+
 app.post('/api/whatsapp/logout', async (req, res) => {
     try {
         console.log('[WhatsApp Admin] Logging out WhatsApp client manually...');
@@ -1249,9 +1343,17 @@ whatsappClient.on('disconnected', async (reason) => {
 whatsappClient.on('message_create', async (msg) => {
     try {
         const chat = await msg.getChat();
-
-        if (!chat.isGroup || chat.id._serialized !== TARGET_GROUP) {
+        if (!chat.isGroup) {
             return;
+        }
+
+        // Query database to see if this group is active
+        const activeCheck = await pool.query(
+            'SELECT 1 FROM whatsapp_groups WHERE group_id = $1 AND active = TRUE',
+            [chat.id._serialized]
+        );
+        if (activeCheck.rows.length === 0) {
+            return; // Ignore message if group is not active
         }
 
         const notifyName = msg.notifyName || msg._data?.notifyName || '';
@@ -1328,11 +1430,14 @@ whatsappClient.on('message_create', async (msg) => {
 });
 
 // Start Server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`==================================================`);
     console.log(`  Express Dashboard Backend running on port ${PORT}`);
     console.log(`  API Access: http://localhost:${PORT}/api/requests`);
     console.log(`==================================================`);
+    
+    // Ensure whatsapp_groups table exists
+    await ensureWhatsappGroupsTable();
     
     // Start WhatsApp Bot Singleton in the same process!
     console.log('Initializing WhatsApp Client singleton...');

@@ -109,6 +109,11 @@ export default function App() {
     lastConnected: null
   });
 
+  const [availableGroups, setAvailableGroups] = useState([]);
+
+  const hasNoActiveGroups = whatsappStatus.status === 'connected' && 
+    (!availableGroups || availableGroups.length === 0 || !availableGroups.some(g => g.active));
+
   const fetchWhatsappStatus = async () => {
     try {
       const res = await fetch('/api/whatsapp/status');
@@ -121,10 +126,51 @@ export default function App() {
     }
   };
 
+  const fetchWhatsappGroups = async () => {
+    try {
+      const res = await fetch('/api/whatsapp/groups');
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableGroups(data);
+      }
+    } catch (err) {
+      console.error('Error fetching whatsapp groups:', err);
+    }
+  };
+
+  const handleToggleGroupActive = async (group) => {
+    try {
+      setRefreshing(true);
+      const response = await fetch('/api/whatsapp/groups/active', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupId: group.id,
+          active: !group.active,
+          name: group.name
+        })
+      });
+      if (response.ok) {
+        await fetchWhatsappGroups();
+      } else {
+        alert('Failed to update group routing state.');
+      }
+    } catch (err) {
+      console.error('Error toggling group routing state:', err);
+      alert('Connection error occurred.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'whatsapp_settings') {
       fetchWhatsappStatus();
-      const interval = setInterval(fetchWhatsappStatus, 3000);
+      fetchWhatsappGroups();
+      const interval = setInterval(() => {
+        fetchWhatsappStatus();
+        fetchWhatsappGroups();
+      }, 3000);
       return () => clearInterval(interval);
     }
   }, [activeTab]);
@@ -133,12 +179,14 @@ export default function App() {
   const fetchData = async () => {
     try {
       setRefreshing(true);
-      const [pendingRes, approvedRes, voiceRes, kpiRes, inventoryRes] = await Promise.all([
+      const [pendingRes, approvedRes, voiceRes, kpiRes, inventoryRes, whatsappStatusRes, whatsappGroupsRes] = await Promise.all([
         fetch('/api/pending'),
         fetch('/api/requests'),
         fetch('/api/voice-notes'),
         fetch('/api/approver-kpis'),
-        fetch('/api/inventory')
+        fetch('/api/inventory'),
+        fetch('/api/whatsapp/status'),
+        fetch('/api/whatsapp/groups')
       ]);
 
       if (pendingRes.ok) {
@@ -167,6 +215,14 @@ export default function App() {
         const machines = Array.from(new Set(inventoryData.map(item => item.machine).filter(Boolean))).sort();
         setUniqueInventoryMachines(machines);
         console.log('[Console Log] Master inventory catalog loaded successfully. Total records:', inventoryData.length);
+      }
+      if (whatsappStatusRes && whatsappStatusRes.ok) {
+        const statusData = await whatsappStatusRes.json();
+        setWhatsappStatus(statusData);
+      }
+      if (whatsappGroupsRes && whatsappGroupsRes.ok) {
+        const groupsData = await whatsappGroupsRes.json();
+        setAvailableGroups(groupsData);
       }
     } catch (err) {
       console.error('Failed to sync dashboard data:', err);
@@ -906,6 +962,52 @@ export default function App() {
           </div>
         </header>
 
+        {hasNoActiveGroups && activeTab !== 'whatsapp_settings' && (
+          <div 
+            style={{
+              backgroundColor: 'var(--accent-amber-bg)',
+              border: '1px solid #fde047',
+              color: 'var(--accent-amber-text)',
+              padding: '1rem 1.25rem',
+              borderRadius: '12px',
+              marginBottom: '1.5rem',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.75rem',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+          >
+            <svg style={{ width: '20px', height: '20px', flexShrink: 0, marginTop: '2px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div style={{ flexGrow: 1 }}>
+              <strong style={{ display: 'block', marginBottom: '0.15rem' }}>No Active WhatsApp Groups Configured!</strong>
+              The AI demand parser will ignore incoming messages until at least one target group is set to active.
+              {currentUserRole === 'manager' && (
+                <button 
+                  onClick={() => setActiveTab('whatsapp_settings')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--accent-blue-text)',
+                    fontWeight: 600,
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    padding: 0,
+                    marginLeft: '0.5rem',
+                    fontFamily: 'inherit',
+                    fontSize: 'inherit'
+                  }}
+                >
+                  Configure Settings
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="loading-container">
             <div className="spinner"></div>
@@ -1177,6 +1279,34 @@ export default function App() {
                 </div>
 
                 <div className="whatsapp-settings-body">
+                  {/* Warning Alert Banner inside settings page if connected but no active groups */}
+                  {hasNoActiveGroups && (
+                    <div 
+                      style={{
+                        backgroundColor: 'var(--accent-amber-bg)',
+                        border: '1px solid #fde047',
+                        color: 'var(--accent-amber-text)',
+                        padding: '1rem 1.25rem',
+                        borderRadius: '12px',
+                        marginBottom: '1rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '0.75rem',
+                        boxShadow: 'var(--shadow-sm)'
+                      }}
+                    >
+                      <svg style={{ width: '20px', height: '20px', flexShrink: 0, marginTop: '2px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <div>
+                        <strong style={{ display: 'block', marginBottom: '0.15rem' }}>No Active WhatsApp Groups Configured!</strong>
+                        The AI demand parser will ignore incoming messages until at least one target group below is set to active.
+                      </div>
+                    </div>
+                  )}
+
                   {/* Account detail grid if connected */}
                   {whatsappStatus.status === 'connected' && (
                     <div className="whatsapp-details-grid">
@@ -1248,6 +1378,79 @@ export default function App() {
                       </div>
                     </div>
                   )}
+
+                  {/* Group Routing Rules Section */}
+                  <div className="whatsapp-groups-section" style={{ borderTop: '1px solid var(--border-light)', paddingTop: '2rem', marginTop: '1rem' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                      Group Routing Rules
+                    </h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                      Select which WhatsApp groups the AI Demand Parser should monitor. Messages from unselected groups will be ignored.
+                    </p>
+
+                    {availableGroups.length === 0 ? (
+                      <div style={{ padding: '1.5rem', backgroundColor: '#f8fafc', borderRadius: '12px', textAlign: 'center', border: '1px dashed var(--border-medium)' }}>
+                        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                          {whatsappStatus.status === 'connected' 
+                            ? 'No active group chats found on this WhatsApp account.' 
+                            : 'Connect WhatsApp to fetch available groups.'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {availableGroups.map((group) => (
+                          <div 
+                            key={group.id} 
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '1rem 1.25rem',
+                              backgroundColor: '#f8fafc',
+                              borderRadius: '12px',
+                              border: '1px solid var(--border-light)',
+                              transition: 'background-color var(--transition-fast)'
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.925rem' }}>
+                                {group.name}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.15rem' }}>
+                                ID: {group.id}
+                              </div>
+                            </div>
+                            
+                            <button
+                              onClick={() => handleToggleGroupActive(group)}
+                              className="btn-refresh"
+                              style={{
+                                padding: '0.45rem 1rem',
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                backgroundColor: group.active ? 'var(--accent-green-bg)' : '#ffffff',
+                                borderColor: group.active ? '#bbf7d0' : 'var(--border-medium)',
+                                color: group.active ? 'var(--accent-green-text)' : 'var(--text-secondary)',
+                                borderRadius: '9999px',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                boxShadow: 'var(--shadow-sm)'
+                              }}
+                            >
+                              {group.active ? (
+                                <>
+                                  <span style={{ width: '6px', height: '6px', backgroundColor: '#16a34a', borderRadius: '50%' }}></span>
+                                  Active
+                                </>
+                              ) : 'Inactive'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Actions row for manual overrides */}
                   <div className="whatsapp-actions-row">

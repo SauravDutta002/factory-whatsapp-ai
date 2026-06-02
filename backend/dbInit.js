@@ -74,6 +74,17 @@ async function dbInit() {
     `);
     console.log('Table "pending_requests" verified.');
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS whatsapp_groups (
+        id SERIAL PRIMARY KEY,
+        group_id VARCHAR(100) UNIQUE,
+        group_name VARCHAR(255),
+        active BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('Table "whatsapp_groups" verified.');
+
     // 2. Read and parse Excel file
     console.log(`Loading Excel file from: ${EXCEL_FILE}`);
     const workbook = xlsx.readFile(EXCEL_FILE);
