@@ -1097,6 +1097,18 @@ app.get('/api/whatsapp/status', (req, res) => {
     res.json(whatsappStatus);
 });
 
+// Helper to wrap promise with a timeout to prevent slow Puppeteer calls from causing 504 Gateway Timeouts
+function promiseWithTimeout(promise, ms, defaultValue = []) {
+    let timeout = new Promise((resolve) => {
+        const id = setTimeout(() => {
+            clearTimeout(id);
+            console.warn(`[Promise Timeout] Request timed out after ${ms}ms. Returning fallback.`);
+            resolve(defaultValue);
+        }, ms);
+    });
+    return Promise.race([promise, timeout]);
+}
+
 app.get('/api/whatsapp/groups', async (req, res) => {
     try {
         // 1. Get groups from DB
@@ -1114,7 +1126,7 @@ app.get('/api/whatsapp/groups', async (req, res) => {
         // 2. Get live chats if connected
         if (whatsappStatus.status === 'connected') {
             try {
-                const chats = await whatsappClient.getChats();
+                const chats = await promiseWithTimeout(whatsappClient.getChats(), 10000, []);
                 const groupChats = chats.filter(c => c.isGroup);
                 
                 groupChats.forEach(chat => {
