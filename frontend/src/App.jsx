@@ -1502,7 +1502,7 @@ export default function App() {
                     <div className="whatsapp-qr-section">
                       <div className="whatsapp-qr-frame">
                         <img 
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(whatsappStatus.qr)}`} 
+                          src={whatsappStatus.qrDataUrl || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(whatsappStatus.qr)}`} 
                           alt="WhatsApp pairing QR code"
                           className="whatsapp-qr-image"
                         />
