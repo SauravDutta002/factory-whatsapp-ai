@@ -1422,8 +1422,15 @@ export default function App() {
 
                     {(whatsappStatus.status === 'disconnected' || whatsappStatus.status === 'qr') && (
                       <button 
-                        className="btn-whatsapp-action btn-whatsapp-action-primary"
-                        style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}
+                        className="btn-whatsapp-action"
+                        style={{ 
+                          backgroundColor: '#2563eb', 
+                          color: 'white', 
+                          border: 'none',
+                          padding: '0.6rem 1.25rem',
+                          fontSize: '0.9rem',
+                          boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -1px rgba(37, 99, 235, 0.1)'
+                        }}
                         onClick={async () => {
                           try {
                             setRefreshing(true);
@@ -1437,10 +1444,14 @@ export default function App() {
                         }}
                         disabled={refreshing}
                       >
-                        <svg style={{ width: '16px', height: '16px', marginRight: '0.35rem' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18" />
-                        </svg>
-                        Relaunch Client
+                        <FiRefreshCw 
+                          size={16} 
+                          style={{ 
+                            marginRight: '0.35rem',
+                            animation: refreshing ? 'spin 1s linear infinite' : 'none' 
+                          }} 
+                        />
+                        {refreshing ? 'Relaunching...' : 'Relaunch Client'}
                       </button>
                     )}
                   </div>
