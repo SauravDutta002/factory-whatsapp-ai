@@ -424,8 +424,8 @@ export default function App() {
       data = data.filter(r => new Date(r.approvedAt || r.demandTimestamp) <= end);
     }
     
-    // Default behavior: Export only items that are approved but not yet received
-    data = data.filter(r => r.status === 'approved'); // 'received' requests will be filtered out
+    // Default behavior: Export all items currently listed in the Approved tab
+    // (since these are sourced from the Approved Google Sheet, they are already implicitly approved)
     
     return data.map(r => ({
       'Part Name': r.partName || '—',
