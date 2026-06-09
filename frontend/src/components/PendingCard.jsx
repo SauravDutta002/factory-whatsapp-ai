@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { FiRefreshCw } from 'react-icons/fi';
 
 // Helper to determine category based on part name
@@ -66,6 +67,23 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
     machine: item.machine || '',
     vendor: item.vendor || '',
     price: item.price || item.rate || ''
+  });
+
+  // Add to Inventory Modal State
+  const [showAddInventory, setShowAddInventory] = useState(false);
+  const [addInventoryLoading, setAddInventoryLoading] = useState(false);
+  const [inventoryFormData, setInventoryFormData] = useState({
+    partName: item.partName || '',
+    sku: '',
+    regNo: '',
+    material: item.material || '',
+    size: item.size || '',
+    machine: item.machine || '',
+    vendor: item.vendor || '',
+    unit: 'Pcs.',
+    price: item.price || item.rate || '',
+    availableQty: '0',
+    category: ''
   });
 
   const voiceNote = voiceNotes.find(note => {
@@ -231,6 +249,39 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
       price: item.price || item.rate || ''
     });
     setIsEditing(false);
+  };
+
+  const handleInventoryFormChange = (e) => {
+    const { name, value } = e.target;
+    setInventoryFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddToInventory = async () => {
+    if (!inventoryFormData.partName.trim()) {
+      alert('Part Name is required.');
+      return;
+    }
+    setAddInventoryLoading(true);
+    try {
+      const response = await fetch('/api/inventory/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inventoryFormData)
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(`"${inventoryFormData.partName}" has been added to inventory successfully!`);
+        setShowAddInventory(false);
+        window.location.reload();
+      } else {
+        alert(data.error || 'Failed to add item to inventory.');
+      }
+    } catch (err) {
+      console.error('Error adding to inventory:', err);
+      alert('Network error. Please try again.');
+    } finally {
+      setAddInventoryLoading(false);
+    }
   };
 
   const handlePlayPause = () => {
@@ -501,6 +552,7 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               );
+              let isNoMatch = false;
 
               if (item.stockWarning === 'Stock Available') {
                 bg = '#f0fdf4';
@@ -517,6 +569,7 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
                 border = '#fde68a';
                 color = '#b45309';
                 label = 'Stock Warning';
+                isNoMatch = true;
                 icon = (
                   <svg style={{ width: '16px', height: '16px', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
@@ -538,10 +591,19 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.4rem',
-                  marginBottom: '0.75rem'
+                  marginBottom: '0.75rem',
+                  flexWrap: 'wrap'
                 }}>
                   {icon}
-                  <span><strong>{label}:</strong> {item.stockWarning}</span>
+                  <span style={{ flex: 1 }}><strong>{label}:</strong> {item.stockWarning}</span>
+                  {isNoMatch && (
+                    <button
+                      onClick={() => setShowAddInventory(true)}
+                      className="add-inventory-btn"
+                    >
+                      + Add to Inventory
+                    </button>
+                  )}
                 </div>
               );
             })()}
@@ -755,6 +817,118 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
           </>
         )}
       </div>
+
+      {/* Add to Inventory Modal */}
+      {showAddInventory && createPortal(
+        <div className="inv-modal-overlay" onClick={() => setShowAddInventory(false)}>
+          <div className="inv-modal" onClick={e => e.stopPropagation()}>
+            <div className="inv-modal-header">
+              <h3>
+                <svg style={{ width: '22px', height: '22px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Add New Inventory Item
+              </h3>
+              <button className="inv-modal-close" onClick={() => setShowAddInventory(false)}>✕</button>
+            </div>
+
+            <p className="inv-modal-subtitle">
+              This item was not found in the inventory database. Fill in the details below to add it.
+            </p>
+
+            <div className="inv-modal-form">
+              <div className="inv-form-full">
+                <label>Part Name <span style={{ color: '#ef4444' }}>*</span></label>
+                <input type="text" name="partName" value={inventoryFormData.partName} onChange={handleInventoryFormChange} placeholder="Enter part name" />
+              </div>
+
+              <div className="inv-form-row">
+                <div className="inv-form-field">
+                  <label>SKU / P No.</label>
+                  <input type="text" name="sku" value={inventoryFormData.sku} onChange={handleInventoryFormChange} placeholder="Auto-generated if blank" />
+                </div>
+                <div className="inv-form-field">
+                  <label>Reg No.</label>
+                  <input type="text" name="regNo" value={inventoryFormData.regNo} onChange={handleInventoryFormChange} placeholder="Registration number" />
+                </div>
+              </div>
+
+              <div className="inv-form-row">
+                <div className="inv-form-field">
+                  <label>Material</label>
+                  <input type="text" name="material" list="inv-modal-materials" value={inventoryFormData.material} onChange={handleInventoryFormChange} placeholder="e.g. Steel, Brass" />
+                  <datalist id="inv-modal-materials">
+                    {uniqueMaterials.map(m => <option key={m} value={m} />)}
+                  </datalist>
+                </div>
+                <div className="inv-form-field">
+                  <label>Size / Detail</label>
+                  <input type="text" name="size" value={inventoryFormData.size} onChange={handleInventoryFormChange} placeholder="e.g. 10mm x 20mm" />
+                </div>
+              </div>
+
+              <div className="inv-form-row">
+                <div className="inv-form-field">
+                  <label>Machine / Group</label>
+                  <input type="text" name="machine" list="inv-modal-machines" value={inventoryFormData.machine} onChange={handleInventoryFormChange} placeholder="e.g. CNC Lathe" />
+                  <datalist id="inv-modal-machines">
+                    {uniqueMachines.map(m => <option key={m} value={m} />)}
+                  </datalist>
+                </div>
+                <div className="inv-form-field">
+                  <label>Vendor</label>
+                  <input type="text" name="vendor" list="inv-modal-vendors" value={inventoryFormData.vendor} onChange={handleInventoryFormChange} placeholder="Vendor name" />
+                  <datalist id="inv-modal-vendors">
+                    {uniqueVendors.map(v => <option key={v} value={v} />)}
+                  </datalist>
+                </div>
+              </div>
+
+              <div className="inv-form-row">
+                <div className="inv-form-field">
+                  <label>Unit</label>
+                  <select name="unit" value={inventoryFormData.unit} onChange={handleInventoryFormChange}>
+                    <option value="Pcs.">Pcs.</option>
+                    <option value="Kg">Kg</option>
+                    <option value="Ltr">Ltr</option>
+                    <option value="Mtr">Mtr</option>
+                    <option value="Set">Set</option>
+                    <option value="Box">Box</option>
+                    <option value="Pair">Pair</option>
+                  </select>
+                </div>
+                <div className="inv-form-field">
+                  <label>Category</label>
+                  <input type="text" name="category" value={inventoryFormData.category} onChange={handleInventoryFormChange} placeholder="e.g. Mechanical, Electrical" />
+                </div>
+              </div>
+
+              <div className="inv-form-row">
+                <div className="inv-form-field">
+                  <label>Price / Rate (₹)</label>
+                  <input type="text" name="price" value={inventoryFormData.price} onChange={handleInventoryFormChange} placeholder="0.00" />
+                </div>
+                <div className="inv-form-field">
+                  <label>Initial Stock Qty</label>
+                  <input type="text" name="availableQty" value={inventoryFormData.availableQty} onChange={handleInventoryFormChange} placeholder="0" />
+                </div>
+              </div>
+            </div>
+
+            <div className="inv-modal-actions">
+              <button className="modal-btn modal-btn-cancel" onClick={() => setShowAddInventory(false)} disabled={addInventoryLoading}>Cancel</button>
+              <button className="modal-btn modal-btn-primary" onClick={handleAddToInventory} disabled={addInventoryLoading}>
+                {addInventoryLoading ? (
+                  <><FiRefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Adding...</>
+                ) : (
+                  'Add Item to Inventory'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

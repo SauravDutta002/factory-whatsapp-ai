@@ -2357,7 +2357,7 @@ export default function App() {
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(15, 23, 42, 0.6)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(4px)', animation: 'fadeIn 0.2s ease-out' }}>
           <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '2rem', width: '90%', maxWidth: '420px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', transform: 'scale(1)', animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {globalModal.type === 'confirm' ? <><FiAlertTriangle color="#ef4444" size={22} /> Confirm Action</> : <><FiInfo color="var(--primary-color)" size={22} /> Notice</>}
+              {globalModal.type === 'confirm' ? <><FiAlertTriangle color="#ef4444" size={22} /> Confirm Action</> : <><FiInfo color="var(--accent-blue-text)" size={22} /> Notice</>}
             </h3>
             <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', marginBottom: '1.75rem', lineHeight: 1.5 }}>
               {globalModal.title && <strong style={{color: 'var(--text-primary)', display: 'block', marginBottom: '0.25rem'}}>{globalModal.title}</strong>}
@@ -2365,9 +2365,9 @@ export default function App() {
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
               {globalModal.type === 'confirm' && (
-                <button onClick={globalModal.onCancel} disabled={globalModal.isLoading} style={{ padding: '0.625rem 1.25rem', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: globalModal.isLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', fontSize: '0.9rem', opacity: globalModal.isLoading ? 0.6 : 1 }} onMouseOver={e => { if(!globalModal.isLoading) e.target.style.backgroundColor = '#e2e8f0'; }} onMouseOut={e => { if(!globalModal.isLoading) e.target.style.backgroundColor = '#f1f5f9'; }}>Cancel</button>
+                <button onClick={globalModal.onCancel} disabled={globalModal.isLoading} className="modal-btn modal-btn-cancel">Cancel</button>
               )}
-              <button onClick={globalModal.onConfirm} disabled={globalModal.isLoading} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.625rem 1.25rem', backgroundColor: globalModal.type === 'confirm' ? '#ef4444' : 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: globalModal.isLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', fontSize: '0.9rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', opacity: globalModal.isLoading ? 0.7 : 1 }} onMouseOver={e => { if(!globalModal.isLoading) e.target.style.filter = 'brightness(1.1)'; }} onMouseOut={e => { if(!globalModal.isLoading) e.target.style.filter = 'brightness(1)'; }}>
+              <button onClick={globalModal.onConfirm} disabled={globalModal.isLoading} className={`modal-btn ${globalModal.type === 'confirm' ? 'modal-btn-danger' : 'modal-btn-primary'}`}>
                 {globalModal.isLoading ? <><FiRefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Processing</> : (globalModal.type === 'confirm' ? 'Proceed' : 'Okay')}
               </button>
             </div>

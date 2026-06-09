@@ -57,3 +57,57 @@ exports.reloadInventory = async (req, res) => {
         res.status(500).json({ error: 'Failed to reload inventory database' });
     }
 };
+
+// POST /api/inventory/add
+exports.addInventoryItem = async (req, res) => {
+    try {
+        const {
+            partName, sku, regNo, material, size, machine,
+            vendor, unit, price, availableQty, category
+        } = req.body;
+
+        if (!partName || !partName.trim()) {
+            return res.status(400).json({ error: 'Part Name is required' });
+        }
+
+        // Generate a SKU if none provided
+        const finalSku = (sku && sku.trim())
+            ? sku.trim()
+            : 'GEN-' + partName.trim().substring(0, 5).toUpperCase().replace(/[^A-Z0-9]/g, '') + '-' + Math.floor(Math.random() * 10000);
+
+        // Check for duplicate SKU
+        const existing = await pool.query('SELECT id FROM inventory WHERE sku = $1', [finalSku]);
+        if (existing.rows.length > 0) {
+            return res.status(409).json({ error: `An inventory item with SKU "${finalSku}" already exists.` });
+        }
+
+        const parsedPrice = parseFloat(price) || 0.00;
+        const parsedQty = parseInt(availableQty) || 0;
+
+        const result = await pool.query(`
+            INSERT INTO inventory (
+                part_name, sku, reg_no, material, detail1, part_group,
+                vendor, unit, price, rate, available_qty, category
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10, $11)
+            RETURNING *
+        `, [
+            partName.trim(),
+            finalSku,
+            (regNo || '').trim(),
+            (material || '').trim(),
+            (size || '').trim(),
+            (machine || 'General Compatibility').trim(),
+            (vendor || '').trim(),
+            (unit || 'Pcs.').trim(),
+            parsedPrice,
+            parsedQty,
+            (category || '').trim()
+        ]);
+
+        console.log(`[Inventory] New item added: "${partName}" (SKU: ${finalSku})`);
+        res.json({ success: true, item: result.rows[0] });
+    } catch (err) {
+        console.error('Error adding inventory item:', err);
+        res.status(500).json({ error: 'Failed to add inventory item' });
+    }
+};

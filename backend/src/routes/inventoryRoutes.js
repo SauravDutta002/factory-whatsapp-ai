@@ -4,5 +4,6 @@ const inventoryController = require('../controllers/inventoryController');
 
 router.get('/inventory', inventoryController.getInventory);
 router.post('/inventory/reload', inventoryController.reloadInventory);
+router.post('/inventory/add', inventoryController.addInventoryItem);
 
 module.exports = router;
