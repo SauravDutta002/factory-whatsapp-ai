@@ -227,7 +227,11 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
       });
       if (response.ok) {
         setIsEditing(false);
-        window.location.reload();
+        if (activeTab === 'receiving' && onReceive) {
+           onReceive(item.id);
+        } else {
+           window.location.reload();
+        }
       } else {
         alert('Failed to save edits to database.');
       }
@@ -326,6 +330,35 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
         {isEditing ? (
           /* EDIT MODE: Minimalist Searchable Autocomplete Form with datalist assistance */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+            {item.suggestedMatch && item.suggestedMatch !== 'No Match' && (
+              <div 
+                onClick={() => handlePartNameChange({ target: { value: item.suggestedMatch } })}
+                style={{
+                  backgroundColor: '#f0fdf4',
+                  borderColor: '#22c55e',
+                  borderWidth: '1px',
+                  borderStyle: 'dashed',
+                  color: '#15803d',
+                  padding: '0.6rem 0.75rem',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+                onMouseOver={e => e.currentTarget.style.backgroundColor = '#dcfce7'}
+                onMouseOut={e => e.currentTarget.style.backgroundColor = '#f0fdf4'}
+              >
+                <svg style={{ width: '16px', height: '16px', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span>Click to apply AI Suggestion: <strong>{item.suggestedMatch}</strong></span>
+              </div>
+            )}
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Part Name (Searchable)</label>
               <input
@@ -477,7 +510,7 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
                 style={{ flexGrow: 1, padding: '0.4rem', fontSize: '0.8rem', justifyContent: 'center' }} 
                 onClick={handleSaveEdit}
               >
-                Save
+                {activeTab === 'receiving' ? 'Confirm & Mark as Received' : 'Save'}
               </button>
               <button 
                 className="btn-refresh" 
@@ -609,25 +642,35 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
             })()}
 
             {item.suggestedMatch && item.suggestedMatch !== 'No Match' && (
-              <div style={{
-                backgroundColor: '#eff6ff',
-                borderColor: '#bfdbfe',
-                borderWidth: '1px',
-                borderStyle: 'solid',
-                color: '#1e40af',
-                padding: '0.5rem 0.75rem',
-                borderRadius: '6px',
-                fontSize: '0.8rem',
-                fontWeight: 500,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                marginBottom: '0.75rem'
-              }}>
+              <div 
+                onClick={() => {
+                  handlePartNameChange({ target: { value: item.suggestedMatch } });
+                  setIsEditing(true);
+                }}
+                style={{
+                  backgroundColor: '#eff6ff',
+                  borderColor: '#bfdbfe',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  color: '#1e40af',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  marginBottom: '0.75rem',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={e => e.currentTarget.style.backgroundColor = '#dbeafe'}
+                onMouseOut={e => e.currentTarget.style.backgroundColor = '#eff6ff'}
+              >
                 <svg style={{ width: '16px', height: '16px', flexShrink: 0 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
-                <span><strong>AI Suggestion:</strong> {item.suggestedMatch}</span>
+                <span><strong>AI Suggestion:</strong> {item.suggestedMatch} <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(Click to Apply)</span></span>
               </div>
             )}
 
@@ -658,7 +701,7 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
               </div>
               <div className="spec-item">
                 <span className="spec-label">Rate (Est. Price)</span>
-                <span className="spec-val" style={{ fontWeight: 600, color: '#0f172a' }}>{formData.price ? `$${formData.price}` : '—'}</span>
+                <span className="spec-val" style={{ fontWeight: 600, color: '#0f172a' }}>{formData.price ? `Rs.${formData.price}` : '—'}</span>
               </div>
               {item.availableStock && item.stockWarning !== 'No Inventory Match' ? (
                 <div className="spec-item">
@@ -708,20 +751,20 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
                 {activeTab === 'receiving' ? (
                   /* RECEIVING ACTIONS */
                   <button 
-                    onClick={() => onReceive(item.id)}
+                    onClick={() => setIsEditing(true)}
                     className="btn-refresh"
                     style={{
                       flexGrow: 1,
                       justifyContent: 'center',
-                      backgroundColor: 'var(--accent-green-bg)',
-                      borderColor: '#bbf7d0',
-                      color: 'var(--accent-green-text)',
+                      backgroundColor: 'var(--accent-blue-bg)',
+                      borderColor: '#bfdbfe',
+                      color: 'var(--accent-blue-text)',
                       fontWeight: 600,
                       fontSize: '0.85rem',
                       padding: '0.55rem'
                     }}
                   >
-                    Mark as Received
+                    Review & Receive
                   </button>
                 ) : currentUserRole === 'reviewer' ? (
                   /* REVIEWER ACTIONS */

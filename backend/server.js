@@ -696,7 +696,7 @@ app.get('/api/pending', async (req, res) => {
                 availableStock = (match.available_qty !== undefined ? match.available_qty : 0).toString();
                 skuValue = match.sku || skuValue;
                 suggestedMatch = match.part_name || '';
-                priceVal = match.price || priceVal;
+                priceVal = priceVal || match.price || '';
 
                 // Extract quantity as numeric for comparison
                 const reqQty = parseInt((row.qty || '').replace(/[^0-9]/g, ''), 10);
@@ -1001,6 +1001,56 @@ app.post('/api/pending/:id/edit', async (req, res) => {
     } catch (err) {
         console.error('Error editing request in DB:', err);
         res.status(500).json({ error: 'Failed to edit pending request in database' });
+    }
+});
+
+// POST Create a Custom Demand from the Dashboard (Reviewer)
+app.post('/api/pending/custom', async (req, res) => {
+    try {
+        const item = req.body;
+        if (!item || !item.partName || !item.qty) {
+            return res.status(400).json({ error: 'Part Name and Quantity are required' });
+        }
+
+        const id = Date.now() + '-CUSTOM-' + Math.floor(Math.random() * 1000);
+        const timestamp = new Date().toISOString();
+        const editorName = item.editorName || 'Dashboard Editor';
+
+        const queryText = `
+            INSERT INTO pending_requests (
+                id, part_name, qty, size, material, machine, vendor, requested_by, 
+                demand_timestamp, received_at, rate, sku, reg_no, status, edited_by, edited_at, forwarded_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, $11, $12, 'reviewed', $13, NOW(), NOW())
+            RETURNING *
+        `;
+
+        const values = [
+            id,
+            item.partName || '',
+            item.qty || '',
+            item.size || '',
+            item.material || '',
+            item.machine || '',
+            item.vendor || '',
+            editorName,
+            timestamp,
+            item.price || item.rate || '',
+            item.sku || '',
+            item.regNo || '',
+            editorName
+        ];
+
+        console.log('--- SQL CUSTOM DEMAND INSERTION ---');
+        console.log('Parameters:', JSON.stringify(values, null, 2));
+        console.log('-----------------------------------');
+
+        const result = await pool.query(queryText, values);
+        
+        if (global.io) global.io.emit('dashboard_update');
+        res.json({ success: true, item: result.rows[0] });
+    } catch (err) {
+        console.error('Error creating custom demand:', err);
+        res.status(500).json({ error: 'Failed to create custom demand in database' });
     }
 });
 

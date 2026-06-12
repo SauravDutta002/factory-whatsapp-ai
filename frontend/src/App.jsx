@@ -31,7 +31,9 @@ export default function App() {
         ? 'reviewer' 
         : currentUser.role === 'approver' 
           ? 'manager' 
-          : 'observer') 
+          : currentUser.role === 'receiver'
+            ? 'receiver'
+            : 'observer') 
     : null;
 
   // View switch and inline table editing states
@@ -55,6 +57,13 @@ export default function App() {
   const [voiceNotes, setVoiceNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Custom Demand State
+  const [showCustomDemandModal, setShowCustomDemandModal] = useState(false);
+  const [customDemandData, setCustomDemandData] = useState({
+    partName: '', sku: '', regNo: '', qty: '', size: '', material: '', machine: '', vendor: '', price: ''
+  });
+
   const [kpiData, setKpiData] = useState({
     newWorkerDemands: 0,
     pendingApproval: 0,
@@ -365,6 +374,11 @@ export default function App() {
 
   // Handle Forward Action (Reviewer)
   const handleForward = async (id, forwardData) => {
+    if (!forwardData.qty || !forwardData.price || String(forwardData.qty).trim() === '' || String(forwardData.price).trim() === '') {
+      alert('Quantity and Rate (Est. Price) are mandatory. Please edit the demand and fill these fields before forwarding.');
+      return;
+    }
+    
     try {
       setRefreshing(true);
       const response = await fetch(`/api/pending/${id}/forward`, {
@@ -410,22 +424,9 @@ export default function App() {
   const [exportEndDate, setExportEndDate] = useState('');
 
   const getFilteredExportData = () => {
-    let data = approvedRequests;
-    
-    // Filter by date range
-    if (exportStartDate) {
-      const start = new Date(exportStartDate);
-      start.setHours(0, 0, 0, 0);
-      data = data.filter(r => new Date(r.approvedAt || r.demandTimestamp) >= start);
-    }
-    if (exportEndDate) {
-      const end = new Date(exportEndDate);
-      end.setHours(23, 59, 59, 999);
-      data = data.filter(r => new Date(r.approvedAt || r.demandTimestamp) <= end);
-    }
-    
-    // Default behavior: Export all items currently listed in the Approved tab
-    // (since these are sourced from the Approved Google Sheet, they are already implicitly approved)
+    // Export exactly what the user is currently looking at in the Approved Tab
+    // This now respects Date range, Machine, Vendor, and Search queries!
+    const data = filteredRequests;
     
     return data.map(r => ({
       'Part Name': r.partName || '—',
@@ -434,10 +435,7 @@ export default function App() {
       'Material': r.material || '—',
       'Machine': r.machine || '—',
       'Vendor': r.vendor || '—',
-      'Rate': r.rate || r.price || '—',
-      'Requested By': r.requestedBy || '—',
-      'Approved By': r.approvedBy || '—',
-      'Approval Date': r.approvedAt ? new Date(r.approvedAt).toLocaleDateString() : '—'
+      'Rate': r.rate || r.price || '—'
     }));
   };
 
@@ -556,7 +554,21 @@ export default function App() {
     const matchesVendor =
       selectedVendor === '' || item.vendor === selectedVendor;
 
-    return matchesSearch && matchesMachine && matchesVendor;
+    let matchesDate = true;
+    if (activeTab === 'approved') {
+      if (exportStartDate) {
+        const start = new Date(exportStartDate);
+        start.setHours(0, 0, 0, 0);
+        if (new Date(item.approvedAt || item.demandTimestamp) < start) matchesDate = false;
+      }
+      if (exportEndDate) {
+        const end = new Date(exportEndDate);
+        end.setHours(23, 59, 59, 999);
+        if (new Date(item.approvedAt || item.demandTimestamp) > end) matchesDate = false;
+      }
+    }
+
+    return matchesSearch && matchesMachine && matchesVendor && matchesDate;
   });
 
   // Filter live inventory catalog client-side by search query
@@ -611,6 +623,11 @@ export default function App() {
       if (response.ok && data.success) {
         localStorage.setItem('user', JSON.stringify(data.user));
         setCurrentUser(data.user);
+        if (data.user.role === 'receiver') {
+          setActiveTab('receiving');
+        } else {
+          setActiveTab('pending');
+        }
       } else {
         setLoginError(data.error || 'Authentication failed.');
       }
@@ -681,6 +698,103 @@ export default function App() {
   const globalUniqueMaterials = Array.from(new Set(inventoryItems.map(i => i.material).filter(Boolean))).sort();
   const globalUniqueMachines = Array.from(new Set(inventoryItems.map(i => i.machine).filter(Boolean))).sort();
   const globalUniqueVendors = Array.from(new Set(inventoryItems.map(i => i.vendor).filter(Boolean))).sort();
+  const globalUniqueSKUs = Array.from(new Set(inventoryItems.map(i => i.sku).filter(Boolean))).sort();
+  const globalUniqueRegNos = Array.from(new Set(inventoryItems.map(i => i.regNo).filter(Boolean))).sort();
+  const globalUniqueSizes = Array.from(new Set(inventoryItems.map(i => i.size).filter(Boolean))).sort();
+
+  const handleCustomDemandPartNameChange = (e) => {
+    const val = e.target.value;
+    const matched = inventoryItems.find(i => i.partName === val);
+    if (matched) {
+      setCustomDemandData(prev => ({
+        ...prev,
+        partName: val,
+        sku: matched.sku || '',
+        regNo: matched.regNo || '',
+        size: matched.size !== '—' ? (matched.size || prev.size) : prev.size,
+        material: matched.material !== '—' ? (matched.material || prev.material) : prev.material,
+        machine: matched.machine !== 'General Compatibility' ? (matched.machine || prev.machine) : prev.machine,
+        vendor: matched.vendor !== '—' ? (matched.vendor || prev.vendor) : prev.vendor,
+        price: matched.price || prev.price
+      }));
+    } else {
+      setCustomDemandData(prev => ({ ...prev, partName: val }));
+    }
+  };
+
+  const handleCustomDemandSkuChange = (e) => {
+    const val = e.target.value;
+    const matched = inventoryItems.find(i => i.sku === val);
+    if (matched) {
+      setCustomDemandData(prev => ({
+        ...prev,
+        sku: val,
+        partName: matched.partName || prev.partName,
+        regNo: matched.regNo || '',
+        size: matched.size !== '—' ? (matched.size || prev.size) : prev.size,
+        material: matched.material !== '—' ? (matched.material || prev.material) : prev.material,
+        machine: matched.machine !== 'General Compatibility' ? (matched.machine || prev.machine) : prev.machine,
+        vendor: matched.vendor !== '—' ? (matched.vendor || prev.vendor) : prev.vendor,
+        price: matched.price || prev.price
+      }));
+    } else {
+      setCustomDemandData(prev => ({ ...prev, sku: val }));
+    }
+  };
+
+  const handleCustomDemandRegNoChange = (e) => {
+    const val = e.target.value;
+    const matched = inventoryItems.find(i => i.regNo === val);
+    if (matched) {
+      setCustomDemandData(prev => ({
+        ...prev,
+        regNo: val,
+        partName: matched.partName || prev.partName,
+        sku: matched.sku || '',
+        size: matched.size !== '—' ? (matched.size || prev.size) : prev.size,
+        material: matched.material !== '—' ? (matched.material || prev.material) : prev.material,
+        machine: matched.machine !== 'General Compatibility' ? (matched.machine || prev.machine) : prev.machine,
+        vendor: matched.vendor !== '—' ? (matched.vendor || prev.vendor) : prev.vendor,
+        price: matched.price || prev.price
+      }));
+    } else {
+      setCustomDemandData(prev => ({ ...prev, regNo: val }));
+    }
+  };
+
+  const submitCustomDemand = async () => {
+    if (!customDemandData.partName || !customDemandData.qty || !customDemandData.price) {
+      alert("Part Name, Quantity, and Rate are mandatory fields.");
+      return;
+    }
+    try {
+      setRefreshing(true);
+      const payload = {
+        ...customDemandData,
+        editorName: currentUser ? currentUser.username : 'Editor'
+      };
+      const response = await fetch('/api/pending/custom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (response.ok) {
+        setShowCustomDemandModal(false);
+        setCustomDemandData({
+          partName: '', sku: '', regNo: '', qty: '', size: '', material: '', machine: '', vendor: '', price: ''
+        });
+        await fetchData();
+        alert("Custom demand successfully forwarded to the Approver!");
+      } else {
+        alert("Failed to submit custom demand.");
+      }
+    } catch (err) {
+      console.error("Error submitting custom demand:", err);
+      alert("Connection error occurred.");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <div className="app-container">
@@ -818,60 +932,65 @@ export default function App() {
           ) : (
             <>
               {/* Pending Approvals Tab Button */}
-              <button 
-                className={`sidebar-menu-item ${activeTab === 'pending' ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveTab('pending');
-                  handleClearFilters();
-                }}
-                style={{ width: '100%', textAlign: 'left', border: 'none', background: 'none' }}
-              >
-                <FiClipboard className="sidebar-icon" />
-                <span style={{ flexGrow: 1 }}>Pending Demands</span>
-                {pendingRequests.filter(r => currentUserRole === 'reviewer' ? (!r.status || r.status === 'pending_review') : r.status === 'reviewed').length > 0 && (
-                  <span 
-                    style={{
-                      backgroundColor: '#ef4444',
-                      color: '#ffffff',
-                      fontSize: '0.7rem',
-                      fontWeight: '700',
-                      padding: '0.15rem 0.45rem',
-                      borderRadius: '9999px',
-                      marginLeft: 'auto'
-                    }}
-                  >
-                    {pendingRequests.filter(r => currentUserRole === 'reviewer' ? (!r.status || r.status === 'pending_review') : r.status === 'reviewed').length}
-                  </span>
-                )}
-              </button>
+              {/* Pending Demands Tab Button */}
+              {currentUserRole !== 'receiver' && (
+                <button 
+                  className={`sidebar-menu-item ${activeTab === 'pending' ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveTab('pending');
+                    handleClearFilters();
+                  }}
+                  style={{ width: '100%', textAlign: 'left', border: 'none', background: 'none' }}
+                >
+                  <FiClipboard className="sidebar-icon" />
+                  <span style={{ flexGrow: 1 }}>Pending Demands</span>
+                  {pendingRequests.filter(r => currentUserRole === 'reviewer' ? (!r.status || r.status === 'pending_review') : r.status === 'reviewed').length > 0 && (
+                    <span 
+                      style={{
+                        backgroundColor: '#ef4444',
+                        color: '#ffffff',
+                        fontSize: '0.7rem',
+                        fontWeight: '700',
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: '9999px',
+                        marginLeft: 'auto'
+                      }}
+                    >
+                      {pendingRequests.filter(r => currentUserRole === 'reviewer' ? (!r.status || r.status === 'pending_review') : r.status === 'reviewed').length}
+                    </span>
+                  )}
+                </button>
+              )}
 
               {/* Receiving Queue Tab Button */}
-              <button 
-                className={`sidebar-menu-item ${activeTab === 'receiving' ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveTab('receiving');
-                  handleClearFilters();
-                }}
-                style={{ width: '100%', textAlign: 'left', border: 'none', background: 'none' }}
-              >
-                <FiInbox className="sidebar-icon" />
-                <span style={{ flexGrow: 1 }}>Receiving Queue</span>
-                {pendingRequests.filter(r => r.status === 'approved').length > 0 && (
-                  <span 
-                    style={{
-                      backgroundColor: 'var(--accent-blue-text)',
-                      color: '#ffffff',
-                      fontSize: '0.7rem',
-                      fontWeight: '700',
-                      padding: '0.15rem 0.45rem',
-                      borderRadius: '9999px',
-                      marginLeft: 'auto'
-                    }}
-                  >
-                    {pendingRequests.filter(r => r.status === 'approved').length}
-                  </span>
-                )}
-              </button>
+              {currentUserRole === 'receiver' && (
+                <button 
+                  className={`sidebar-menu-item ${activeTab === 'receiving' ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveTab('receiving');
+                    handleClearFilters();
+                  }}
+                  style={{ width: '100%', textAlign: 'left', border: 'none', background: 'none' }}
+                >
+                  <FiInbox className="sidebar-icon" />
+                  <span style={{ flexGrow: 1 }}>Receiving Queue</span>
+                  {pendingRequests.filter(r => r.status === 'approved').length > 0 && (
+                    <span 
+                      style={{
+                        backgroundColor: 'var(--accent-blue-text)',
+                        color: '#ffffff',
+                        fontSize: '0.7rem',
+                        fontWeight: '700',
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: '9999px',
+                        marginLeft: 'auto'
+                      }}
+                    >
+                      {pendingRequests.filter(r => r.status === 'approved').length}
+                    </span>
+                  )}
+                </button>
+              )}
 
               {/* Approved History Tab Button */}
               <button 
@@ -1003,6 +1122,29 @@ export default function App() {
           
           <div className="header-controls">
             
+            {currentUserRole === 'reviewer' && activeTab === 'pending' && (
+              <button 
+                onClick={() => setShowCustomDemandModal(true)}
+                className="btn-refresh"
+                style={{ 
+                  backgroundColor: 'var(--accent-blue-bg)', 
+                  borderColor: '#bfdbfe', 
+                  color: 'var(--accent-blue-text)', 
+                  padding: '0.45rem 1rem', 
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  fontWeight: 600
+                }}
+              >
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ width: '14px', height: '14px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Create Custom Demand
+              </button>
+            )}
+
             {/* Layout Switcher (Card / List Toggle) */}
             {activeTab !== 'whatsapp_settings' && (
               <div style={{ 
@@ -1305,8 +1447,8 @@ export default function App() {
                           </div>
                           <div className="spec-item">
                             <span className="spec-label">Rate (Catalog Price)</span>
-                            <span className="spec-val" style={{ fontWeight: 600, color: '#0f172a' }}>
-                              {item.rate && parseFloat(item.rate) > 0 ? `$${parseFloat(item.rate).toFixed(2)}` : (item.price && parseFloat(item.price) > 0 ? `$${parseFloat(item.price).toFixed(2)}` : '—')}
+                            <span className="spec-val">
+                              {item.rate && parseFloat(item.rate) > 0 ? `Rs.${parseFloat(item.rate).toFixed(2)}` : (item.price && parseFloat(item.price) > 0 ? `Rs.${parseFloat(item.price).toFixed(2)}` : '—')}
                             </span>
                           </div>
                         </div>
@@ -1388,7 +1530,7 @@ export default function App() {
                           <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>{item.category}</td>
                           <td style={{ padding: '1rem 1.25rem', color: 'var(--text-primary)', fontWeight: 500 }}>{item.vendor}</td>
                           <td style={{ padding: '1rem 1.25rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-                            {item.rate && parseFloat(item.rate) > 0 ? `$${parseFloat(item.rate).toFixed(2)}` : (item.price && parseFloat(item.price) > 0 ? `$${parseFloat(item.price).toFixed(2)}` : '—')}
+                            {item.rate && parseFloat(item.rate) > 0 ? `Rs.${parseFloat(item.rate).toFixed(2)}` : (item.price && parseFloat(item.price) > 0 ? `Rs.${parseFloat(item.price).toFixed(2)}` : '—')}
                           </td>
                         </tr>
                       );
@@ -2101,7 +2243,7 @@ export default function App() {
                                 style={{ width: '80px', padding: '0.35rem 0.6rem', fontSize: '0.85rem' }}
                               />
                             ) : (
-                              item.price && parseFloat(item.price) > 0 ? `$${item.price}` : (item.rate ? `$${item.rate}` : '—')
+                              item.price && parseFloat(item.price) > 0 ? `Rs.${item.price}` : (item.rate ? `Rs.${item.rate}` : '—')
                             )}
                           </td>
 
@@ -2351,6 +2493,92 @@ export default function App() {
           </>
         )}
       </main>
+
+      {/* Custom Demand Modal */}
+      {showCustomDemandModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(15, 23, 42, 0.6)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(4px)', animation: 'fadeIn 0.2s ease-out' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '2rem', width: '90%', maxWidth: '500px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', transform: 'scale(1)', animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FiClipboard color="var(--accent-blue-text)" size={22} /> Create Custom Demand
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Part Name *</label>
+                <input type="text" list="custom-demand-parts" className="filter-select" style={{ width: '100%' }} value={customDemandData.partName} onChange={handleCustomDemandPartNameChange} placeholder="e.g. Hex Bolt" />
+                <datalist id="custom-demand-parts">
+                  {globalUniquePartNames.map(name => <option key={name} value={name} />)}
+                </datalist>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>P No. (SKU)</label>
+                  <input type="text" list="custom-demand-skus" className="filter-select" style={{ width: '100%' }} value={customDemandData.sku} onChange={handleCustomDemandSkuChange} placeholder="e.g. PN-123" />
+                  <datalist id="custom-demand-skus">
+                    {globalUniqueSKUs.map(sku => <option key={sku} value={sku} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Reg No.</label>
+                  <input type="text" list="custom-demand-regnos" className="filter-select" style={{ width: '100%' }} value={customDemandData.regNo} onChange={handleCustomDemandRegNoChange} placeholder="e.g. RN-456" />
+                  <datalist id="custom-demand-regnos">
+                    {globalUniqueRegNos.map(reg => <option key={reg} value={reg} />)}
+                  </datalist>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Quantity *</label>
+                  <input type="text" className="filter-select" style={{ width: '100%' }} value={customDemandData.qty} onChange={e => setCustomDemandData({...customDemandData, qty: e.target.value})} placeholder="e.g. 500 pcs" />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem', color: 'var(--text-secondary)' }}>Rate (Est. Price)</label>
+                  <input type="text" className="filter-select" style={{ width: '100%' }} value={customDemandData.price} onChange={e => setCustomDemandData({...customDemandData, price: e.target.value})} placeholder="e.g. Rs.5.00" />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Size Specs</label>
+                  <input type="text" list="custom-demand-sizes" className="filter-select" style={{ width: '100%' }} value={customDemandData.size} onChange={e => setCustomDemandData({...customDemandData, size: e.target.value})} placeholder="e.g. 10mm" />
+                  <datalist id="custom-demand-sizes">
+                    {globalUniqueSizes.map(size => <option key={size} value={size} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Material</label>
+                  <input type="text" list="custom-demand-materials" className="filter-select" style={{ width: '100%' }} value={customDemandData.material} onChange={e => setCustomDemandData({...customDemandData, material: e.target.value})} placeholder="e.g. Steel" />
+                  <datalist id="custom-demand-materials">
+                    {globalUniqueMaterials.map(mat => <option key={mat} value={mat} />)}
+                  </datalist>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Machine</label>
+                  <input type="text" list="custom-demand-machines" className="filter-select" style={{ width: '100%' }} value={customDemandData.machine} onChange={e => setCustomDemandData({...customDemandData, machine: e.target.value})} placeholder="e.g. CNC-1" />
+                  <datalist id="custom-demand-machines">
+                    {globalUniqueMachines.map(mac => <option key={mac} value={mac} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Vendor</label>
+                  <input type="text" list="custom-demand-vendors" className="filter-select" style={{ width: '100%' }} value={customDemandData.vendor} onChange={e => setCustomDemandData({...customDemandData, vendor: e.target.value})} placeholder="e.g. Acme Corp" />
+                  <datalist id="custom-demand-vendors">
+                    {globalUniqueVendors.map(ven => <option key={ven} value={ven} />)}
+                  </datalist>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '2rem' }}>
+              <button onClick={() => setShowCustomDemandModal(false)} className="modal-btn modal-btn-cancel">Cancel</button>
+              <button onClick={submitCustomDemand} className="modal-btn modal-btn-primary" style={{ backgroundColor: 'var(--accent-blue-bg)', color: 'var(--accent-blue-text)', borderColor: '#bfdbfe' }}>
+                Forward to Approver
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Global Custom Modal Pop-up */}
       {globalModal.isOpen && (

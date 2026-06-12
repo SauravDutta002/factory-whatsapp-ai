@@ -50,3 +50,10 @@ The frontend dashboard provides role-based access control, steering demands thro
 - **Fluid Layout**: Removed rigid `max-height: 100vh` and inner scrollbars from the main workspace. The dashboard now natively expands, allowing smooth, full-page browser scrolling.
 - **Default Exports**: Removed the redundant "Approved but not received" checkbox; this logical filter is now strictly enforced as the default behavior for all exports and prints.
 - **Inline Editing**: Streamlined the table view inline-editing experience, ensuring robust visual feedback (spinners, disabled states) during network requests.
+
+### Editor/Reviewer Enhancements
+- **Strict Forwarding Validation**: Enforced a new rule where an Editor *cannot* forward a demand to the Approver without first explicitly editing the request and providing a valid `Quantity` and `Rate (Est. Price)`.
+- **Role-based KPIs**: Upgraded the Editor view so that it now sees the exact same actionable KPI metrics panel (`ApproverMetrics`) as the Manager, instead of generic system metrics.
+
+### System & Stability
+- **Missing Dependency Fix**: Resolved an `Uncaught Exception` during server startup by cleanly installing the `helmet` security package on the backend.

@@ -19,5 +19,12 @@
     "passwordHash": "$2b$10$eNiEmx7VskHTyKNFZsaekeG1i6Drmg0eE1LrxMKoQfiSAW2djW2vW",
     "role": "manager",
     "displayName": "Manager"
+  },
+  {
+    "id": "4",
+    "username": "receiver",
+    "passwordHash": "$2b$10$8QaXRsF12GkHvx/LiNDUne295h9CbQq/ks4eDjlU7v0keszNeaqeO",
+    "role": "receiver",
+    "displayName": "Receiver"
   }
 ]

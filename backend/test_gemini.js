@@ -74,8 +74,8 @@ send me 5 back gauge pc
 `;
 
 async function run() {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
-    const result = await model.generateContent(prompt);
-    console.log(result.response.text());
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const result = await model.generateContent(prompt);
+  console.log(result.response.text());
 }
 run();
