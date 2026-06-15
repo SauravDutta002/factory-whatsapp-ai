@@ -1560,13 +1560,13 @@ app.post('/api/whatsapp/reconnect', async (req, res) => {
 });
 
 // Serve frontend in production (compiled dist folder)
-const distPath = path.join(__dirname, '..', 'frontend', 'dist');
-if (fs.existsSync(distPath)) {
-    app.use(express.static(distPath));
-    app.get('*splat', (req, res) => {
-        res.sendFile(path.join(distPath, 'index.html'));
-    });
-}
+// const distPath = path.join(__dirname, '..', 'frontend', 'dist');
+// if (fs.existsSync(distPath)) {
+//     app.use(express.static(distPath));
+//     app.get('*splat', (req, res) => {
+//         res.sendFile(path.join(distPath, 'index.html'));
+//     });
+// }
 
 // =============================================================================
 // WhatsApp Bot Event Listeners & Simulation Endpoint
@@ -1768,12 +1768,12 @@ function setupBaileysEvents(sock) {
 
 // --- Production Frontend Serving ---
 // In production, serve the compiled Vite frontend from the 'dist' directory
-if (process.env.NODE_ENV === 'production' || process.env.SERVE_STATIC === 'true') {
-    app.use(express.static(path.join(__dirname, '../frontend/dist')));
-    app.get('*', (req, res) => {
-        res.sendFile(path.resolve(__dirname, '../frontend/dist', 'index.html'));
-    });
-}
+// if (process.env.NODE_ENV === 'production' || process.env.SERVE_STATIC === 'true') {
+//     app.use(express.static(path.join(__dirname, '../frontend/dist')));
+//     app.get('*', (req, res) => {
+//         res.sendFile(path.resolve(__dirname, '../frontend/dist', 'index.html'));
+//     });
+// }
 
 // --- Graceful Shutdown ---
 function gracefulShutdown(signal) {
