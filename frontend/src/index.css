@@ -189,13 +189,20 @@ body {
 /* Main Content Workspace */
 .main-workspace {
   flex-grow: 1;
-  padding: 1.5rem 2rem;
+  padding: 1.5rem 0 0 2rem; /* Right padding moved to children */
   display: flex;
   flex-direction: column;
   height: 100vh;
   box-sizing: border-box;
-  overflow-x: hidden;
+  overflow: hidden;
+}
+
+.workspace-content {
+  flex-grow: 1;
+  min-height: 0; /* Prevents flex child from overflowing its parent */
   overflow-y: auto;
+  padding-bottom: 1.5rem;
+  padding-right: 2rem;
 }
 
 /* Top Header & Search */
@@ -203,6 +210,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-right: 2rem;
+
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
   gap: 1.5rem;
