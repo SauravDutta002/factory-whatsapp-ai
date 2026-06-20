@@ -7,6 +7,9 @@ export default function Filters({
   setSelectedMachine,
   selectedVendor,
   setSelectedVendor,
+  selectedStatus,
+  setSelectedStatus,
+  activeTab,
   uniqueMachines = [],
   uniqueVendors = []
 }) {
@@ -14,9 +17,10 @@ export default function Filters({
     setSearchQuery('');
     setSelectedMachine('');
     setSelectedVendor('');
+    if (setSelectedStatus) setSelectedStatus('');
   };
 
-  const hasActiveFilters = searchQuery !== '' || selectedMachine !== '' || selectedVendor !== '';
+  const hasActiveFilters = searchQuery !== '' || selectedMachine !== '' || selectedVendor !== '' || (activeTab === 'approved' && selectedStatus !== '');
 
   return (
     <div className="filter-dashboard">
@@ -53,6 +57,22 @@ export default function Filters({
           ))}
         </select>
       </div>
+
+      {/* Dynamic Dropdown: By Receipt Status (Only for Approved History) */}
+      {activeTab === 'approved' && (
+        <div className="filter-group">
+          <label className="filter-label">Receipt Status</label>
+          <select
+            className="filter-select"
+            value={selectedStatus || ''}
+            onChange={(e) => setSelectedStatus && setSelectedStatus(e.target.value)}
+          >
+            <option value="">All Demands</option>
+            <option value="approved">Yet to be Received</option>
+            <option value="received">Received</option>
+          </select>
+        </div>
+      )}
 
       {/* Clear Filters Button (Minimalist text link style) */}
       {hasActiveFilters && (
@@ -94,6 +114,12 @@ export default function Filters({
             <span className="filter-tag">
               Vendor: {selectedVendor}
               <span className="filter-tag-close" onClick={() => setSelectedVendor('')}>✕</span>
+            </span>
+          )}
+          {activeTab === 'approved' && selectedStatus && (
+            <span className="filter-tag">
+              Status: {selectedStatus === 'approved' ? 'Yet to be Received' : 'Received'}
+              <span className="filter-tag-close" onClick={() => setSelectedStatus && setSelectedStatus('')}>✕</span>
             </span>
           )}
         </div>

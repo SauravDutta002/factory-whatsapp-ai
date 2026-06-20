@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { FiRefreshCw } from 'react-icons/fi';
+import { FiRefreshCw, FiCheckCircle, FiXCircle, FiCornerUpRight, FiEdit2, FiSave, FiX, FiAlertCircle, FiDatabase, FiPlus, FiAlertTriangle, FiSearch, FiCopy, FiBox } from 'react-icons/fi';
+import { standardizeUnit, displayQty, displayUnit } from '../../utils/unitStandardizer';
+import MultiTagInput from './MultiTagInput';
 
 // Helper to determine category based on part name
 const getCategory = (partName = '') => {
@@ -61,7 +63,8 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
     partName: item.partName || '',
     sku: item.sku || '',
     regNo: item.regNo || '',
-    qty: item.qty || '',
+    qty: displayQty(item.qty, item.unit),
+    unit: displayUnit(item.qty, item.unit),
     size: item.size || '',
     material: item.material || '',
     machine: item.machine || '',
@@ -130,6 +133,12 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
     formData.material,
     ...inventoryItems.map(i => i.material)
   ].filter(Boolean))).sort();
+
+  const uniqueUnits = Array.from(new Set([
+    formData.unit,
+    ...inventoryItems.map(i => i.unit)
+  ].filter(Boolean))).sort();
+
 
   const uniqueMachines = Array.from(new Set([
     formData.machine,
@@ -214,6 +223,7 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
         regNo: val,
         partName: matched.partName || prev.partName,
         sku: matched.sku || '',
+        category: matched.category !== '—' ? (matched.category || prev.category) : prev.category,
         size: matched.size !== '—' ? (matched.size || prev.size) : prev.size,
         material: matched.material !== '—' ? (matched.material || prev.material) : prev.material,
         machine: matched.machine !== 'General Compatibility' ? (matched.machine || prev.machine) : prev.machine,
@@ -253,13 +263,14 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
       partName: item.partName || '',
       sku: item.sku || '',
       regNo: item.regNo || '',
-      qty: item.qty || '',
+      qty: displayQty(item.qty, item.unit),
+      unit: displayUnit(item.qty, item.unit),
       size: item.size || '',
       material: item.material || '',
       machine: item.machine || '',
       vendor: item.vendor || '',
       category: item.category || '',
-    price: String(item.price || item.rate || '').replace(/[\$Rs\s]/g, '')
+      price: String(item.price || item.rate || '').replace(/[\$Rs\s]/g, '')
     });
     setIsEditing(false);
   };
@@ -412,10 +423,7 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
                   onChange={handleRegNoChange}
                 />
               </div>
-            </div>
 
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Quantity</label>
                 <input
@@ -425,9 +433,27 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
                   className="card-input"
                   style={{ width: '100%', padding: '0.4rem 0.75rem', marginTop: '0.2rem' }}
                   value={formData.qty}
-                  onChange={handleInputChange}
+                  onChange={(e) => setFormData({ ...formData, qty: e.target.value.replace(/[^\d.]/g, '') })}
                 />
               </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Unit</label>
+                <input
+                  type="text"
+                  name="unit"
+                  list={`unit-list-${item.id}`}
+                  placeholder="e.g. pcs"
+                  className="card-input"
+                  style={{ width: '100%', padding: '0.4rem 0.75rem', marginTop: '0.2rem' }}
+                  value={formData.unit || ''}
+                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  onBlur={(e) => setFormData({ ...formData, unit: standardizeUnit(e.target.value) })}
+                />
+                <datalist id={`unit-list-${item.id}`}>
+                  {uniqueUnits.map(u => <option key={u} value={u} />)}
+                </datalist>
+              </div>
+
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Size Specs</label>
                 <input
@@ -440,9 +466,6 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
                   onChange={handleInputChange}
                 />
               </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Material (Searchable)</label>
                 <input
@@ -461,27 +484,38 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
                   ))}
                 </datalist>
               </div>
+
               <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Machine (Searchable)</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Category (Searchable)</label>
                 <input
                   type="text"
-                  name="machine"
-                  list="inventory-machines-card-list"
-                  placeholder="Enter or select machine"
+                  name="category"
+                  list="inventory-categories-card-list"
+                  placeholder="Enter or select category"
                   className="card-input"
-                  style={{ width: '100%', padding: '0.4rem 0.75rem', marginTop: '0.2rem' }}
-                  value={formData.machine}
+                  style={{ width: '100%', padding: '0.4rem 0.75rem', marginTop: '0.2rem', textTransform: 'capitalize' }}
+                  value={formData.category}
                   onChange={handleInputChange}
                 />
-                <datalist id="inventory-machines-card-list">
-                  {uniqueMachines.map(mac => (
-                    <option key={mac} value={mac} />
+                <datalist id="inventory-categories-card-list">
+                  {uniqueCategories.map(cat => (
+                    <option key={cat} value={cat} />
                   ))}
                 </datalist>
               </div>
-            </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Machine (Searchable, Multiple)</label>
+                <MultiTagInput
+                  name="machine"
+                  list="inventory-machines-card-list"
+                  placeholder="Enter or select machine"
+                  value={formData.machine}
+                  onChange={handleInputChange}
+                  options={uniqueMachines}
+                  style={{ marginTop: '0.2rem' }}
+                />
+              </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Vendor (Searchable)</label>
                 <input
@@ -577,12 +611,16 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
               </div>
             )}
             
-            <div className="demand-machine" style={{ marginBottom: '0.75rem' }}>
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              {formData.machine || 'Stock / General Care'}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
+              {(formData.machine || 'Stock / General Care').split(',').map(m => m.trim()).filter(Boolean).map((mac, idx) => (
+                <div key={idx} className="demand-machine" style={{ marginBottom: 0 }}>
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  {mac}
+                </div>
+              ))}
             </div>
 
             {item.stockWarning && (() => {
@@ -700,6 +738,10 @@ export default function PendingCard({ item, voiceNotes = [], currentUserRole, on
               <div className="spec-item">
                 <span className="spec-label">Quantity</span>
                 <span className="spec-val">{formData.qty || '—'}</span>
+              </div>
+              <div className="spec-item">
+                <span className="spec-label">Unit</span>
+                <span className="spec-val">{formData.unit || '—'}</span>
               </div>
               <div className="spec-item">
                 <span className="spec-label">Size Specification</span>

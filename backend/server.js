@@ -185,15 +185,16 @@ async function savePendingRequest(item, senderName = 'WhatsApp User') {
 
         const queryText = `
             INSERT INTO pending_requests (
-                id, part_name, qty, size, material, machine, vendor, requested_by, 
-                demand_timestamp, received_at, rate, status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, $11)
+                id, part_name, qty, unit, size, material, machine, vendor, requested_by, 
+                demand_timestamp, received_at, rate, status, category
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), $10, $11, $12, $13)
         `;
 
         const values = [
             id,
             item["Part Name"] || item.partName || '',
             item["Qty Required"] || item.qty || '',
+            item["Unit"] || item.unit || '',
             item["Size"] || item.size || '',
             item["Material"] || item.material || '',
             item["For Machine"] || item.machine || '',
@@ -201,7 +202,8 @@ async function savePendingRequest(item, senderName = 'WhatsApp User') {
             senderName,
             receivedAt,
             item["Price"] || item.price || '',
-            'pending_review'
+            'pending_review',
+            item["Category"] || item.category || ''
         ];
 
         console.log('--- SQL DIRECT BOT INSERTION ---');
@@ -738,6 +740,7 @@ app.get('/api/pending', async (req, res) => {
                 id: row.id,
                 partName: row.part_name || '',
                 qty: row.qty || '',
+                unit: row.unit || '',
                 size: row.size || '',
                 material: row.material || '',
                 machine: row.machine || '',
@@ -988,7 +991,7 @@ app.post('/api/pending/:id/edit', async (req, res) => {
         const queryText = `
             UPDATE pending_requests 
             SET part_name = $1, qty = $2, size = $3, material = $4, machine = $5, vendor = $6, rate = $7, 
-                sku = $8, reg_no = $9, edited_by = $10, edited_at = NOW()
+                sku = $8, reg_no = $9, edited_by = $10, edited_at = NOW(), unit = $12, category = $13
             WHERE id = $11
             RETURNING *
         `;
@@ -1004,7 +1007,9 @@ app.post('/api/pending/:id/edit', async (req, res) => {
             editData.sku || '',
             editData.regNo || '',
             editorRoleName,
-            id
+            id,
+            editData.unit || '',
+            editData.category || ''
         ];
 
         console.log('--- SQL EDIT PAYLOAD ---');
@@ -1041,9 +1046,9 @@ app.post('/api/pending/custom', async (req, res) => {
 
         const queryText = `
             INSERT INTO pending_requests (
-                id, part_name, qty, size, material, machine, vendor, requested_by, 
-                demand_timestamp, received_at, rate, sku, reg_no, status, edited_by, edited_at, forwarded_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, $11, $12, 'reviewed', $13, NOW(), NOW())
+                id, part_name, qty, unit, size, material, machine, vendor, requested_by, 
+                demand_timestamp, received_at, rate, sku, reg_no, status, edited_by, edited_at, forwarded_at, category
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), $10, $11, $12, $13, 'reviewed', $14, NOW(), NOW(), $15)
             RETURNING *
         `;
 
@@ -1051,6 +1056,7 @@ app.post('/api/pending/custom', async (req, res) => {
             id,
             item.partName || '',
             item.qty || '',
+            item.unit || '',
             item.size || '',
             item.material || '',
             item.machine || '',
@@ -1060,7 +1066,8 @@ app.post('/api/pending/custom', async (req, res) => {
             item.price || item.rate || '',
             item.sku || '',
             item.regNo || '',
-            editorName
+            editorName,
+            item.category || ''
         ];
 
         console.log('--- SQL CUSTOM DEMAND INSERTION ---');
@@ -1090,7 +1097,7 @@ app.post('/api/pending/:id/forward', async (req, res) => {
         const queryText = `
             UPDATE pending_requests 
             SET part_name = $1, qty = $2, size = $3, material = $4, machine = $5, vendor = $6, rate = $7,
-                sku = $8, reg_no = $9, status = 'reviewed', edited_by = 'Reviewer', edited_at = NOW(), forwarded_at = NOW()
+                sku = $8, reg_no = $9, status = 'reviewed', edited_by = 'Reviewer', edited_at = NOW(), forwarded_at = NOW(), unit = $11, category = $12
             WHERE id = $10
             RETURNING *
         `;
@@ -1105,7 +1112,9 @@ app.post('/api/pending/:id/forward', async (req, res) => {
             editData.price || editData.rate || '',
             editData.sku || '',
             editData.regNo || '',
-            id
+            id,
+            editData.unit || '',
+            editData.category || ''
         ];
 
         console.log('--- SQL FORWARD PAYLOAD ---');
@@ -1137,7 +1146,7 @@ app.post('/api/pending/:id/approve', async (req, res) => {
         const queryText = `
             UPDATE pending_requests 
             SET part_name = $1, qty = $2, size = $3, material = $4, machine = $5, vendor = $6, rate = $7,
-                sku = $8, reg_no = $9, status = 'approved', approved_by = 'Manager', approved_at = NOW()
+                sku = $8, reg_no = $9, status = 'approved', approved_by = 'Manager', approved_at = NOW(), unit = $11, category = $12
             WHERE id = $10
             RETURNING *
         `;
@@ -1152,7 +1161,9 @@ app.post('/api/pending/:id/approve', async (req, res) => {
             approvedData.price || approvedData.rate || '',
             approvedData.sku || '',
             approvedData.regNo || '',
-            id
+            id,
+            approvedData.unit || '',
+            approvedData.category || ''
         ];
 
         console.log('--- SQL APPROVE PAYLOAD ---');
@@ -1265,6 +1276,72 @@ app.post('/api/inventory/reload', async (req, res) => {
         res.status(500).json({
             error: 'Failed to reload inventory database'
         });
+    }
+});
+
+// POST Edit inventory item and update matching pending requests
+app.post('/api/inventory/:id/edit', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const editData = req.body;
+
+        const checkResult = await pool.query('SELECT * FROM inventory WHERE id = $1', [id]);
+        if (checkResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Inventory item not found' });
+        }
+        const oldItem = checkResult.rows[0];
+
+        const queryText = `
+            UPDATE inventory 
+            SET part_name = $1, sku = $2, reg_no = $3, available_qty = $4, unit = $5, detail1 = $6, material = $7, category = $8, part_group = $9, vendor = $10, price = $11, rate = $11
+            WHERE id = $12
+            RETURNING *
+        `;
+        const values = [
+            editData.partName || '',
+            editData.sku || '',
+            editData.regNo || '',
+            parseInt(editData.stockQuantity, 10) || 0,
+            editData.unit || '',
+            editData.size || '',
+            editData.material || '',
+            editData.category || '',
+            editData.machine || 'General Compatibility',
+            editData.vendor || '',
+            parseFloat(editData.price || editData.rate || '0') || 0.00,
+            id
+        ];
+
+        const updatedInventoryResult = await pool.query(queryText, values);
+        const newInventory = updatedInventoryResult.rows[0];
+
+        if (oldItem.part_name && oldItem.part_name.trim() !== '') {
+            const updatePendingQuery = `
+                UPDATE pending_requests
+                SET part_name = $1, sku = $2, reg_no = $3, unit = $4, size = $5, material = $6, category = $7, machine = $8, vendor = $9
+                WHERE part_name = $10 AND status IN ('pending_review', 'reviewed', 'approved')
+            `;
+            const pendingValues = [
+                newInventory.part_name || '',
+                newInventory.sku || '',
+                newInventory.reg_no || '',
+                newInventory.unit || '',
+                newInventory.detail1 || '',
+                newInventory.material || '',
+                newInventory.category || '',
+                newInventory.part_group || '',
+                newInventory.vendor || '',
+                oldItem.part_name
+            ];
+            const updatedPendingResult = await pool.query(updatePendingQuery, pendingValues);
+            console.log(`[Inventory Edit] Updated ${updatedPendingResult.rowCount} pending requests that matched old part_name "${oldItem.part_name}".`);
+        }
+
+        if (global.io) global.io.emit('dashboard_update');
+        res.json({ success: true, item: newInventory });
+    } catch (err) {
+        console.error('Error updating inventory item:', err);
+        res.status(500).json({ error: 'Failed to update inventory' });
     }
 });
 

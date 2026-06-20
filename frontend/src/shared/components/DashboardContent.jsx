@@ -4,10 +4,12 @@ import Filters from './Filters';
 import DemandTable from './DemandTable';
 import PendingCard from './PendingCard';
 import RequestCard from './RequestCard';
+import { standardizeUnit } from '../../utils/unitStandardizer';
 import { FiRefreshCw, FiAlertTriangle, FiInfo, FiTrash2, FiClipboard, FiInbox, FiUser, FiDownload, FiPrinter } from 'react-icons/fi';
+import MultiTagInput from './MultiTagInput';
 
 export default function DashboardContent(props) { // Force HMR reload
-  const { loading, activeTab, kpiData, filteredRequests, viewMode, currentPendingIndex, setCurrentPendingIndex, handleApprove, handleReject, handleForward, rejectingId, setRejectingId, rejectReason, setRejectReason, currentUserRole, inventoryItems, selectedInventoryMachine, setSelectedInventoryMachine, uniqueInventoryMachines, inventoryLoading, handleReceive, editingRowId, setEditingRowId, editFormData, setEditFormData, handleSaveInlineEdit, handlePartNameChange, handleSkuChange, searchQuery, setSearchQuery, selectedMachine, setSelectedMachine, selectedVendor, setSelectedVendor, uniqueMachines, uniqueVendors, whatsappStatus, whatsappGroups, setWhatsappGroups, fetchWhatsappStatus, fetchWhatsappGroups, showCustomDemandModal, setShowCustomDemandModal, customDemandData, setCustomDemandData, submitCustomDemand, globalModal, setGlobalModal, handleClearFilters, filteredInventory, hasNoActiveGroups, setActiveTab, pendingRequests, apiLimitCount, apiLimitMax, setCurrentUserRole, setViewMode, fetchData, refreshing, setRefreshing, globalUniquePartNames, globalUniqueVendors, globalUniqueMachines, globalUniqueMaterials, globalUniqueSKUs, globalUniqueRegNos, globalUniqueSizes, handleCustomDemandPartNameChange, handleCustomDemandSkuChange, handleCustomDemandRegNoChange, voiceNotes, exportStartDate, setExportStartDate, exportEndDate, setExportEndDate, exportToExcel, exportToPDF, printDemandList, customConfirm, availableGroups, handleToggleGroupActive } = props;
+  const { loading, activeTab, kpiData, filteredRequests, viewMode, currentPendingIndex, setCurrentPendingIndex, handleApprove, handleReject, handleForward, rejectingId, setRejectingId, rejectReason, setRejectReason, currentUserRole, inventoryItems, selectedInventoryMachine, setSelectedInventoryMachine, uniqueInventoryMachines, inventoryLoading, handleReceive, editingRowId, setEditingRowId, editFormData, setEditFormData, handleSaveInlineEdit, inventoryEditingId, setInventoryEditingId, inventoryEditFormData, setInventoryEditFormData, handleSaveInventoryEdit, showInventoryEditModal, setShowInventoryEditModal, handlePartNameChange, handleSkuChange, searchQuery, setSearchQuery, selectedMachine, setSelectedMachine, selectedVendor, setSelectedVendor, selectedStatus, setSelectedStatus, uniqueMachines, uniqueVendors, whatsappStatus, whatsappGroups, setWhatsappGroups, fetchWhatsappStatus, fetchWhatsappGroups, showCustomDemandModal, setShowCustomDemandModal, customDemandData, setCustomDemandData, submitCustomDemand, globalModal, setGlobalModal, handleClearFilters, filteredInventory, hasNoActiveGroups, setActiveTab, pendingRequests, apiLimitCount, apiLimitMax, setCurrentUserRole, setViewMode, fetchData, refreshing, setRefreshing, globalUniquePartNames, globalUniqueMaterials, globalUniqueMachines, globalUniqueVendors, globalUniqueSKUs, globalUniqueRegNos, globalUniqueSizes, globalUniqueUnits, handleCustomDemandPartNameChange, handleCustomDemandSkuChange, handleCustomDemandRegNoChange, voiceNotes, exportStartDate, setExportStartDate, exportEndDate, setExportEndDate, exportToExcel, exportToPDF, printDemandList, customConfirm, availableGroups, handleToggleGroupActive } = props;
 
   return (
     <>
@@ -158,55 +160,85 @@ export default function DashboardContent(props) { // Force HMR reload
                       </div>
                       
                       <div className="demand-card-body" style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-                        <h2 className="demand-part-name" style={{ marginBottom: '0.5rem' }}>
-                          {item.partName || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Unnamed Item</span>}
-                        </h2>
-                        
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-                          <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#1d4ed8', backgroundColor: '#eff6ff', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
-                            {item.sku || 'GEN-SKU'}
-                          </span>
-                          <span style={{ color: 'var(--text-muted)' }}>|</span>
-                          <span>Reg No: <strong>{item.regNo || '—'}</strong></span>
-                        </div>
-                        
-                        <div className="demand-machine" style={{ marginBottom: '0.75rem' }}>
-                          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          {item.machine || 'General'}
-                        </div>
-                        
-                        <div className="specs-list" style={{ marginBottom: '1.25rem' }}>
-                          <div className="spec-item">
-                            <span className="spec-label">Size Specification</span>
-                            <span className="spec-val">{item.size || '—'}</span>
-                          </div>
-                          <div className="spec-item">
-                            <span className="spec-label">Material Type</span>
-                            <span className="spec-val">{item.material || '—'}</span>
-                          </div>
-                          <div className="spec-item">
-                            <span className="spec-label">Category</span>
-                            <span className="spec-val" style={{ textTransform: 'capitalize' }}>{item.category || '—'}</span>
-                          </div>
-                          <div className="spec-item">
-                            <span className="spec-label">Rate (Catalog Price)</span>
-                            <span className="spec-val">
-                              {item.rate && parseFloat(item.rate) > 0 ? `Rs.${parseFloat(item.rate).toFixed(2)}` : (item.price && parseFloat(item.price) > 0 ? `Rs.${parseFloat(item.price).toFixed(2)}` : '—')}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <div className="demand-card-footer" style={{ marginTop: 'auto', borderTop: '1px solid var(--border-light)', paddingTop: '0.75rem' }}>
-                          <div className="demand-vendor">
-                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                            {item.vendor || '—'}
-                          </div>
-                        </div>
+                            <h2 className="demand-part-name" style={{ marginBottom: '0.5rem' }}>
+                              {item.partName || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Unnamed Item</span>}
+                            </h2>
+                            
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                              <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#1d4ed8', backgroundColor: '#eff6ff', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                                {item.sku || 'GEN-SKU'}
+                              </span>
+                              <span style={{ color: 'var(--text-muted)' }}>|</span>
+                              <span>Reg No: <strong>{item.regNo || '—'}</strong></span>
+                            </div>
+                            
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
+                              {(item.machine || 'General').split(',').map(m => m.trim()).filter(Boolean).map((mac, idx) => (
+                                <div key={idx} className="demand-machine" style={{ marginBottom: 0 }}>
+                                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  {mac}
+                                </div>
+                              ))}
+                            </div>
+                            
+                            <div className="specs-list" style={{ marginBottom: '1.25rem' }}>
+                              <div className="spec-item">
+                                <span className="spec-label">Size Specification</span>
+                                <span className="spec-val">{item.size || '—'}</span>
+                              </div>
+                              <div className="spec-item">
+                                <span className="spec-label">Material Type</span>
+                                <span className="spec-val">{item.material || '—'}</span>
+                              </div>
+                              <div className="spec-item">
+                                <span className="spec-label">Category</span>
+                                <span className="spec-val" style={{ textTransform: 'capitalize' }}>{item.category || '—'}</span>
+                              </div>
+                              <div className="spec-item">
+                                <span className="spec-label">Rate (Catalog Price)</span>
+                                <span className="spec-val">
+                                  {item.rate && parseFloat(item.rate) > 0 ? `Rs.${parseFloat(item.rate).toFixed(2)}` : (item.price && parseFloat(item.price) > 0 ? `Rs.${parseFloat(item.price).toFixed(2)}` : '—')}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="demand-card-footer" style={{ marginTop: 'auto', borderTop: '1px solid var(--border-light)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div className="demand-vendor">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                {item.vendor || '—'}
+                              </div>
+                              
+                              <button
+                                onClick={() => {
+                                  setInventoryEditingId(item.id);
+                                  setInventoryEditFormData({
+                                    partName: item.partName || '',
+                                    sku: item.sku || '',
+                                    regNo: item.regNo || '',
+                                    stockQuantity: item.stockQuantity || '',
+                                    unit: item.unit || '',
+                                    size: item.size || '',
+                                    material: item.material || '',
+                                    category: item.category || '',
+                                    machine: item.machine || '',
+                                    vendor: item.vendor || '',
+                                    price: item.rate || item.price || ''
+                                  });
+                                  setShowInventoryEditModal(true);
+                                }}
+                                className="action-btn"
+                                style={{ padding: '0.35rem 0.6rem', minWidth: 'auto', backgroundColor: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', fontWeight: 600 }}
+                                title="Edit"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                Edit
+                              </button>
+                            </div>
                       </div>
                     </div>
                   );
@@ -236,47 +268,154 @@ export default function DashboardContent(props) { // Force HMR reload
                       <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Category</th>
                       <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Vendor</th>
                       <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Rate</th>
+                      <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredInventory.map((item, index) => {
                        const isLowStock = item.stockQuantity === 0;
+                       const isEditingRow = inventoryEditingId === item.id;
+                       
                        return (
                         <tr 
                           key={item.id || index} 
                           style={{ 
                             borderBottom: index === filteredInventory.length - 1 ? 'none' : '1px solid var(--border-light)',
-                            transition: 'background-color var(--transition-fast)'
+                            transition: 'background-color var(--transition-fast)',
+                            backgroundColor: isEditingRow ? '#f8fafc' : 'transparent'
                           }}
                           className="inventory-table-row"
                         >
                           <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{index + 1}</td>
-                          <td style={{ padding: '1rem 1.25rem', color: '#1d4ed8', fontFamily: 'monospace', fontWeight: 600 }}>{item.sku}</td>
-                          <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{item.regNo}</td>
-                          <td style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>{item.partName}</td>
+                          
+                          <td style={{ padding: '1rem 1.25rem', color: '#1d4ed8', fontFamily: 'monospace', fontWeight: 600 }}>
+                            {isEditingRow ? (
+                              <input type="text" className="filter-select" style={{ width: '80px', padding: '0.35rem' }} value={inventoryEditFormData.sku} onChange={(e) => setInventoryEditFormData({...inventoryEditFormData, sku: e.target.value})} />
+                            ) : item.sku}
+                          </td>
+                          
+                          <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                            {isEditingRow ? (
+                              <input type="text" className="filter-select" style={{ width: '80px', padding: '0.35rem' }} value={inventoryEditFormData.regNo} onChange={(e) => setInventoryEditFormData({...inventoryEditFormData, regNo: e.target.value})} />
+                            ) : item.regNo}
+                          </td>
+                          
+                          <td style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {isEditingRow ? (
+                              <input type="text" className="filter-select" style={{ width: '120px', padding: '0.35rem' }} value={inventoryEditFormData.partName} onChange={(e) => setInventoryEditFormData({...inventoryEditFormData, partName: e.target.value})} />
+                            ) : item.partName}
+                          </td>
+                          
                           <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>
-                            <span style={{ 
-                              display: 'inline-block',
-                              padding: '0.25rem 0.6rem',
-                              borderRadius: '6px',
-                              fontSize: '0.8rem',
-                              fontWeight: 500,
-                              backgroundColor: '#f1f5f9',
-                              color: 'var(--text-primary)'
-                            }}>
-                              {item.machine}
-                            </span>
+                            {isEditingRow ? (
+                              <input type="text" list="inventory-machines-list" className="filter-select" style={{ width: '100px', padding: '0.35rem' }} value={inventoryEditFormData.machine} onChange={(e) => setInventoryEditFormData({...inventoryEditFormData, machine: e.target.value})} />
+                            ) : (
+                              <span style={{ 
+                                display: 'inline-block',
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: '6px',
+                                fontSize: '0.8rem',
+                                fontWeight: 500,
+                                backgroundColor: '#f1f5f9',
+                                color: 'var(--text-primary)'
+                              }}>
+                                {item.machine}
+                              </span>
+                            )}
                           </td>
-                          <td style={{ padding: '1rem 1.25rem', fontWeight: 700, textAlign: 'right', color: isLowStock ? '#dc2626' : '#16a34a' }}>
-                            {isLowStock ? 'Out of Stock' : item.stockQuantity}
+                          
+                          <td style={{ padding: '1rem 1.25rem', fontWeight: 700, textAlign: 'right', color: isLowStock && !isEditingRow ? '#dc2626' : '#16a34a' }}>
+                            {isEditingRow ? (
+                              <input type="text" className="filter-select" style={{ width: '60px', padding: '0.35rem', textAlign: 'right' }} value={inventoryEditFormData.stockQuantity} onChange={(e) => setInventoryEditFormData({...inventoryEditFormData, stockQuantity: e.target.value.replace(/[^\d]/g, '')})} />
+                            ) : (isLowStock ? 'Out of Stock' : item.stockQuantity)}
                           </td>
-                          <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>{item.unit}</td>
-                          <td style={{ padding: '1rem 1.25rem', color: 'var(--text-primary)', fontWeight: 500 }}>{item.size}</td>
-                          <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>{item.material}</td>
-                          <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>{item.category}</td>
-                          <td style={{ padding: '1rem 1.25rem', color: 'var(--text-primary)', fontWeight: 500 }}>{item.vendor}</td>
+                          
+                          <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>
+                            {isEditingRow ? (
+                              <input type="text" list="inventory-units-list" className="filter-select" style={{ width: '60px', padding: '0.35rem' }} value={inventoryEditFormData.unit || ''} onChange={(e) => setInventoryEditFormData({...inventoryEditFormData, unit: e.target.value})} onBlur={(e) => {
+                                import('../../utils/unitStandardizer').then(({ standardizeUnit }) => {
+                                  setInventoryEditFormData({...inventoryEditFormData, unit: standardizeUnit(e.target.value)});
+                                });
+                              }} />
+                            ) : item.unit}
+                          </td>
+                          
+                          <td style={{ padding: '1rem 1.25rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                            {isEditingRow ? (
+                              <input type="text" className="filter-select" style={{ width: '80px', padding: '0.35rem' }} value={inventoryEditFormData.size} onChange={(e) => setInventoryEditFormData({...inventoryEditFormData, size: e.target.value})} />
+                            ) : item.size}
+                          </td>
+                          
+                          <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>
+                            {isEditingRow ? (
+                              <input type="text" list="inventory-materials-list" className="filter-select" style={{ width: '80px', padding: '0.35rem' }} value={inventoryEditFormData.material} onChange={(e) => setInventoryEditFormData({...inventoryEditFormData, material: e.target.value})} />
+                            ) : item.material}
+                          </td>
+                          
+                          <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>
+                            {isEditingRow ? (
+                              <input type="text" list="inventory-categories-list" className="filter-select" style={{ width: '90px', padding: '0.35rem' }} value={inventoryEditFormData.category} onChange={(e) => setInventoryEditFormData({...inventoryEditFormData, category: e.target.value})} />
+                            ) : item.category}
+                          </td>
+                          
+                          <td style={{ padding: '1rem 1.25rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                            {isEditingRow ? (
+                              <input type="text" list="inventory-vendors-list" className="filter-select" style={{ width: '100px', padding: '0.35rem' }} value={inventoryEditFormData.vendor} onChange={(e) => setInventoryEditFormData({...inventoryEditFormData, vendor: e.target.value})} />
+                            ) : item.vendor}
+                          </td>
+                          
                           <td style={{ padding: '1rem 1.25rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-                            {item.rate && parseFloat(item.rate) > 0 ? `Rs.${parseFloat(item.rate).toFixed(2)}` : (item.price && parseFloat(item.price) > 0 ? `Rs.${parseFloat(item.price).toFixed(2)}` : '—')}
+                            {isEditingRow ? (
+                              <input type="text" className="filter-select" style={{ width: '70px', padding: '0.35rem' }} value={inventoryEditFormData.price} onChange={(e) => setInventoryEditFormData({...inventoryEditFormData, price: e.target.value})} />
+                            ) : (item.rate && parseFloat(item.rate) > 0 ? `Rs.${parseFloat(item.rate).toFixed(2)}` : (item.price && parseFloat(item.price) > 0 ? `Rs.${parseFloat(item.price).toFixed(2)}` : '—'))}
+                          </td>
+                          
+                          <td style={{ padding: '1rem 1.25rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            {isEditingRow ? (
+                              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                <button
+                                  onClick={() => handleSaveInventoryEdit(item.id)}
+                                  disabled={refreshing}
+                                  className="action-btn action-approve"
+                                  style={{ padding: '0.4rem', minWidth: 'auto', backgroundColor: '#16a34a', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                  title="Save"
+                                >
+                                  {refreshing ? <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }}></div> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                                </button>
+                                <button
+                                  onClick={() => setInventoryEditingId(null)}
+                                  className="action-btn action-reject"
+                                  style={{ padding: '0.4rem', minWidth: 'auto', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                  title="Cancel"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setInventoryEditingId(item.id);
+                                  setInventoryEditFormData({
+                                    partName: item.partName || '',
+                                    sku: item.sku || '',
+                                    regNo: item.regNo || '',
+                                    stockQuantity: item.stockQuantity || '',
+                                    unit: item.unit || '',
+                                    size: item.size || '',
+                                    material: item.material || '',
+                                    category: item.category || '',
+                                    machine: item.machine || '',
+                                    vendor: item.vendor || '',
+                                    price: item.rate || item.price || ''
+                                  });
+                                }}
+                                className="action-btn"
+                                style={{ padding: '0.4rem', minWidth: 'auto', backgroundColor: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer' }}
+                                title="Edit"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
@@ -588,6 +727,9 @@ export default function DashboardContent(props) { // Force HMR reload
               setSelectedMachine={setSelectedMachine}
               selectedVendor={selectedVendor}
               setSelectedVendor={setSelectedVendor}
+              selectedStatus={selectedStatus}
+              setSelectedStatus={setSelectedStatus}
+              activeTab={activeTab}
               uniqueMachines={uniqueMachines}
               uniqueVendors={uniqueVendors}
             />
@@ -660,26 +802,7 @@ export default function DashboardContent(props) { // Force HMR reload
                   rejectReason={rejectReason}
                   setRejectReason={setRejectReason}
                 />
-                <datalist id="inventory-parts-list">
-                  {globalUniquePartNames.map(name => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
-                <datalist id="inventory-vendors-list">
-                  {globalUniqueVendors.map(ven => (
-                    <option key={ven} value={ven} />
-                  ))}
-                </datalist>
-                <datalist id="inventory-machines-list">
-                  {globalUniqueMachines.map(mac => (
-                    <option key={mac} value={mac} />
-                  ))}
-                </datalist>
-                <datalist id="inventory-materials-list">
-                  {globalUniqueMaterials.map(mat => (
-                    <option key={mat} value={mat} />
-                  ))}
-                </datalist>
+
               </div>
             ) : (activeTab === 'pending' || activeTab === 'receiving') ? (
               /* SLIDESHOW / CAROUSEL FORMAT FOR PENDING APPROVALS & RECEIVING QUEUE */
@@ -824,10 +947,17 @@ export default function DashboardContent(props) { // Force HMR reload
                   </datalist>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Quantity *</label>
-                  <input type="text" className="filter-select" style={{ width: '100%' }} value={customDemandData.qty} onChange={e => setCustomDemandData({...customDemandData, qty: e.target.value})} placeholder="e.g. 500 pcs" />
+                  <input type="text" className="filter-select" style={{ width: '100%' }} value={customDemandData.qty} onChange={e => setCustomDemandData({...customDemandData, qty: e.target.value.replace(/[^\d.]/g, '')})} placeholder="e.g. 500" />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Unit</label>
+                  <input type="text" list="custom-demand-units" className="filter-select" style={{ width: '100%' }} value={customDemandData.unit || ''} onChange={e => setCustomDemandData({...customDemandData, unit: e.target.value})} onBlur={e => setCustomDemandData({...customDemandData, unit: standardizeUnit(e.target.value)})} placeholder="e.g. pcs" />
+                  <datalist id="custom-demand-units">
+                     {globalUniqueUnits && globalUniqueUnits.map(u => <option key={u} value={u} />)}
+                  </datalist>
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem', color: 'var(--text-secondary)' }}>Rate (Est. Price)</label>
@@ -852,11 +982,15 @@ export default function DashboardContent(props) { // Force HMR reload
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Machine</label>
-                  <input type="text" list="custom-demand-machines" className="filter-select" style={{ width: '100%' }} value={customDemandData.machine} onChange={e => setCustomDemandData({...customDemandData, machine: e.target.value})} placeholder="e.g. CNC-1" />
-                  <datalist id="custom-demand-machines">
-                    {globalUniqueMachines.map(mac => <option key={mac} value={mac} />)}
-                  </datalist>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Machine (Searchable, Multiple)</label>
+                  <MultiTagInput
+                    name="machine"
+                    list="custom-demand-machines"
+                    placeholder="Enter or select machine"
+                    value={customDemandData.machine}
+                    onChange={e => setCustomDemandData({...customDemandData, machine: e.target.value})}
+                    options={globalUniqueMachines}
+                  />
                 </div>
                 <div>
                   <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Vendor</label>
@@ -872,6 +1006,82 @@ export default function DashboardContent(props) { // Force HMR reload
               <button onClick={() => setShowCustomDemandModal(false)} className="modal-btn modal-btn-cancel">Cancel</button>
               <button onClick={submitCustomDemand} className="modal-btn modal-btn-primary" style={{ backgroundColor: 'var(--accent-blue-bg)', color: 'var(--accent-blue-text)', borderColor: '#bfdbfe' }}>
                 Forward to Approver
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Inventory Edit Modal */}
+      {showInventoryEditModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(15, 23, 42, 0.6)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(4px)', animation: 'fadeIn 0.2s ease-out' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '2rem', width: '90%', maxWidth: '500px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', transform: 'scale(1)', animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem' }}>
+              <FiClipboard color="var(--accent-blue-text)" size={22} /> Edit Inventory Item
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Part Name *</label>
+                <input type="text" className="filter-select" style={{ width: '100%' }} value={inventoryEditFormData.partName} onChange={e => setInventoryEditFormData({...inventoryEditFormData, partName: e.target.value})} placeholder="e.g. Hex Bolt" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>P No. (SKU)</label>
+                  <input type="text" className="filter-select" style={{ width: '100%' }} value={inventoryEditFormData.sku} onChange={e => setInventoryEditFormData({...inventoryEditFormData, sku: e.target.value})} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Reg No.</label>
+                  <input type="text" className="filter-select" style={{ width: '100%' }} value={inventoryEditFormData.regNo} onChange={e => setInventoryEditFormData({...inventoryEditFormData, regNo: e.target.value})} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Stock Quantity *</label>
+                  <input type="text" className="filter-select" style={{ width: '100%' }} value={inventoryEditFormData.stockQuantity} onChange={e => setInventoryEditFormData({...inventoryEditFormData, stockQuantity: e.target.value.replace(/[^\d]/g, '')})} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Unit</label>
+                  <input type="text" list="inventory-units-list" className="filter-select" style={{ width: '100%' }} value={inventoryEditFormData.unit || ''} onChange={(e) => setInventoryEditFormData({...inventoryEditFormData, unit: e.target.value})} onBlur={(e) => {
+                    import('../../utils/unitStandardizer').then(({ standardizeUnit }) => {
+                      setInventoryEditFormData({...inventoryEditFormData, unit: standardizeUnit(e.target.value)});
+                    });
+                  }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Size Specs</label>
+                  <input type="text" className="filter-select" style={{ width: '100%' }} value={inventoryEditFormData.size} onChange={e => setInventoryEditFormData({...inventoryEditFormData, size: e.target.value})} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Material</label>
+                  <input type="text" list="inventory-materials-list" className="filter-select" style={{ width: '100%' }} value={inventoryEditFormData.material} onChange={e => setInventoryEditFormData({...inventoryEditFormData, material: e.target.value})} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Category</label>
+                  <input type="text" list="inventory-categories-list" className="filter-select" style={{ width: '100%' }} value={inventoryEditFormData.category} onChange={e => setInventoryEditFormData({...inventoryEditFormData, category: e.target.value})} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Machine (Searchable, Multiple)</label>
+                  <MultiTagInput
+                    name="machine"
+                    list="inventory-machines-list"
+                    placeholder="Enter or select machine"
+                    value={inventoryEditFormData.machine}
+                    onChange={e => setInventoryEditFormData({...inventoryEditFormData, machine: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Vendor</label>
+                  <input type="text" list="inventory-vendors-list" className="filter-select" style={{ width: '100%' }} value={inventoryEditFormData.vendor} onChange={e => setInventoryEditFormData({...inventoryEditFormData, vendor: e.target.value})} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Rate (Est. Price)</label>
+                  <input type="text" className="filter-select" style={{ width: '100%' }} value={inventoryEditFormData.price} onChange={e => setInventoryEditFormData({...inventoryEditFormData, price: e.target.value})} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '2rem' }}>
+              <button onClick={() => { setShowInventoryEditModal(false); setInventoryEditingId(null); }} disabled={refreshing} className="modal-btn modal-btn-cancel">Cancel</button>
+              <button onClick={() => handleSaveInventoryEdit(inventoryEditingId)} disabled={refreshing} className="modal-btn modal-btn-primary" style={{ backgroundColor: 'var(--accent-green-bg)', color: 'var(--accent-green-text)', borderColor: '#bbf7d0' }}>
+                {refreshing ? <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', borderColor: 'rgba(22, 163, 74, 0.3)', borderTopColor: '#16a34a', marginRight: '0.5rem', display: 'inline-block', verticalAlign: 'middle' }}></div> : null} Save Changes
               </button>
             </div>
           </div>
@@ -900,6 +1110,38 @@ export default function DashboardContent(props) { // Force HMR reload
           </div>
         </div>
       )}
+
+      {/* Global Datalists for Dropdowns */}
+      <datalist id="inventory-parts-list">
+        {globalUniquePartNames.map(name => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
+      <datalist id="inventory-vendors-list">
+        {globalUniqueVendors.map(ven => (
+          <option key={ven} value={ven} />
+        ))}
+      </datalist>
+      <datalist id="inventory-machines-list">
+        {globalUniqueMachines.map(mac => (
+          <option key={mac} value={mac} />
+        ))}
+      </datalist>
+      <datalist id="inventory-materials-list">
+        {globalUniqueMaterials.map(mat => (
+          <option key={mat} value={mat} />
+        ))}
+      </datalist>
+      <datalist id="inventory-units-list">
+        {globalUniqueUnits.map(unit => (
+          <option key={unit} value={unit} />
+        ))}
+      </datalist>
+      <datalist id="inventory-categories-list">
+        {Array.from(new Set(inventoryItems.map(i => i.category).filter(Boolean))).sort().map(cat => (
+          <option key={cat} value={cat} />
+        ))}
+      </datalist>
     </>
   );
 }

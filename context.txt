@@ -34,7 +34,7 @@ graph TD
 
 ### 1. Data Ingestion (WhatsApp -> AI -> DB)
 1. **WhatsApp Listener**: The backend runs a Baileys client simulating a WhatsApp Web session. It listens to active, configured WhatsApp groups.
-2. **AI Parsing**: When a message arrives, it is placed in a Mutex queue (`geminiMutex`) to prevent API rate-limiting. Google Gemini AI processes the raw text to extract structured fields: `Part Name`, `Qty`, `Size`, `Material`, `Machine`, and `Vendor`. The AI is instructed to strictly preserve the exact text typed by the worker and NEVER auto-populate missing fields like SKU or Rate.
+2. **AI Parsing**: When a message arrives, it is placed in a Mutex queue (`geminiMutex`) to prevent API rate-limiting. Google Gemini AI processes the raw text to extract structured fields: `Part Name`, `Qty Required` (strictly numeric), `Unit`, `Size`, `Material`, `Machine`, and `Vendor`. The AI is instructed to strictly preserve the exact text typed by the worker and NEVER auto-populate missing fields like SKU or Rate.
 3. **Inventory Matching**: The backend cross-references the extracted part name with the NeonDB `inventory` table. If a match is found, it ONLY populates the `suggestedMatch` field for the UI, leaving all extracted data exactly as requested.
 4. **Database Insertion**: The parsed request is inserted into the `pending_requests` table in NeonDB with the initial status set to `pending_review`.
 5. **Live Update**: A Socket.io event (`dashboard_update`) is emitted, instantly refreshing the frontend UI without requiring a page reload.
@@ -69,6 +69,7 @@ The frontend dashboard provides role-based access control, steering demands thro
 ### Database Migration
 - Fully migrated away from Google Sheets. NeonDB is now the sole permanent ledger.
 - Added essential tracking columns to `pending_requests`: `status`, `rate`, `sku`, `reg_no`, `approved_by`, `approved_at`, `edited_by`, `edited_at`, `forwarded_at`.
+- Cleaned and migrated all legacy `pending_requests` data, separating legacy mixed quantity strings (e.g. "10 pcs") into pure numeric `qty` and formatted `unit` columns.
 
 ### Backend Enhancements
 - **Endpoints updated**: `/edit`, `/forward`, and `/approve` routes now properly capture and persist explicit edits to all fields, including `sku` and `reg_no`.
@@ -80,6 +81,7 @@ The frontend dashboard provides role-based access control, steering demands thro
 - **Fluid Layout**: Removed rigid `max-height: 100vh` and inner scrollbars from the main workspace. The dashboard now natively expands, allowing smooth, full-page browser scrolling.
 - **Default Exports**: Removed the redundant "Approved but not received" checkbox; this logical filter is now strictly enforced as the default behavior for all exports and prints.
 - **Inline Editing**: Streamlined the table view inline-editing experience, ensuring robust visual feedback (spinners, disabled states) during network requests.
+- **Unit Standardization & Layout**: Separated the Unit and Quantity inputs globally. A shared frontend/backend `standardizeUnit` utility intelligently maps variations (like 'meters', 'mtr', 'm') into standard forms ('meter'). Form layouts (like PendingCard and Custom Demand) have been upgraded to utilize a clean 2-column aesthetic, and `Quantity` inputs enforce strictly numeric entry.
 
 ### Editor/Reviewer Enhancements
 - **Strict Forwarding Validation**: Enforced a new rule where an Editor *cannot* forward a demand to the Approver without first explicitly editing the request and providing a valid `Quantity` and `Rate (Est. Price)`.

@@ -517,19 +517,24 @@ body {
 }
 
 .demand-machine {
-  font-size: 0.825rem;
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-blue-text);
+  background-color: var(--accent-blue-bg);
+  border: 1px solid #bfdbfe;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
   margin-bottom: 1rem;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  width: fit-content;
 }
 
 .demand-machine svg {
   width: 14px;
   height: 14px;
-  color: var(--text-muted);
+  color: var(--accent-blue-text);
 }
 
 /* Specifications Grid List */

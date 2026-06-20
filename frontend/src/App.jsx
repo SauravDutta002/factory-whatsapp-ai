@@ -51,6 +51,23 @@ export default function App() {
     qty: '',
     size: '',
     material: '',
+    category: '',
+    machine: '',
+    vendor: '',
+    price: ''
+  });
+
+  const [inventoryEditingId, setInventoryEditingId] = useState(null);
+  const [showInventoryEditModal, setShowInventoryEditModal] = useState(false);
+  const [inventoryEditFormData, setInventoryEditFormData] = useState({
+    partName: '',
+    sku: '',
+    regNo: '',
+    stockQuantity: '',
+    unit: '',
+    size: '',
+    material: '',
+    category: '',
     machine: '',
     vendor: '',
     price: ''
@@ -66,7 +83,7 @@ export default function App() {
   // Custom Demand State
   const [showCustomDemandModal, setShowCustomDemandModal] = useState(false);
   const [customDemandData, setCustomDemandData] = useState({
-    partName: '', sku: '', regNo: '', qty: '', size: '', material: '', machine: '', vendor: '', price: ''
+    partName: '', sku: '', regNo: '', qty: '', unit: '', size: '', material: '', machine: '', vendor: '', price: ''
   });
 
   const [kpiData, setKpiData] = useState({
@@ -79,6 +96,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMachine, setSelectedMachine] = useState('');
   const [selectedVendor, setSelectedVendor] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
   const [currentPendingIndex, setCurrentPendingIndex] = useState(0);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -515,6 +533,28 @@ export default function App() {
     }
   };
 
+  const handleSaveInventoryEdit = async (id) => {
+    try {
+      setRefreshing(true);
+      const response = await fetch(`/api/inventory/${id}/edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inventoryEditFormData)
+      });
+      if (response.ok) {
+        setInventoryEditingId(null);
+        setShowInventoryEditModal(false);
+        await fetchData();
+      } else {
+        alert('Failed to save inventory edits to database.');
+      }
+    } catch (err) {
+      console.error('Error saving inventory edits:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   // Select current active data list depending on active tab AND user role
   // Editor (reviewer) sees only pending_review; Approver (manager) sees only reviewed; Manager (observer) has specific tabs
   const activeDataList = (() => {
@@ -576,8 +616,12 @@ export default function App() {
         if (new Date(item.approvedAt || item.demandTimestamp) > end) matchesDate = false;
       }
     }
+    let matchesStatus = true;
+    if (activeTab === 'approved' && selectedStatus !== '') {
+      matchesStatus = item.status === selectedStatus;
+    }
 
-    return matchesSearch && matchesMachine && matchesVendor && matchesDate;
+    return matchesSearch && matchesMachine && matchesVendor && matchesDate && matchesStatus;
   });
 
   // Filter live inventory catalog client-side by search query
@@ -710,6 +754,7 @@ export default function App() {
   const globalUniqueSKUs = Array.from(new Set(inventoryItems.map(i => i.sku).filter(Boolean))).sort();
   const globalUniqueRegNos = Array.from(new Set(inventoryItems.map(i => i.regNo).filter(Boolean))).sort();
   const globalUniqueSizes = Array.from(new Set(inventoryItems.map(i => i.size).filter(Boolean))).sort();
+  const globalUniqueUnits = Array.from(new Set(inventoryItems.map(i => i.unit).filter(Boolean))).sort();
 
   const handleCustomDemandPartNameChange = (e) => {
     const val = e.target.value;
@@ -788,10 +833,10 @@ export default function App() {
         body: JSON.stringify(payload)
       });
       if (response.ok) {
-        setShowCustomDemandModal(false);
         setCustomDemandData({
-          partName: '', sku: '', regNo: '', qty: '', size: '', material: '', machine: '', vendor: '', price: ''
+          partName: '', sku: '', regNo: '', qty: '', unit: '', size: '', material: '', machine: '', vendor: '', price: ''
         });
+        setShowCustomDemandModal(false);
         await fetchData();
         alert("Custom demand successfully forwarded to the Approver!");
       } else {
@@ -811,13 +856,14 @@ export default function App() {
     setSearchQuery('');
     setSelectedMachine('');
     setSelectedVendor('');
+    setSelectedStatus('');
     setSelectedInventoryMachine('');
   }
 
   const handlePartNameChange = (e) => setEditFormData({...editFormData, partName: e.target.value});
   const handleSkuChange = (e) => setEditFormData({...editFormData, sku: e.target.value});
 
-  const dashboardProps = { loading, voiceNotes, exportStartDate, setExportStartDate, exportEndDate, setExportEndDate, exportToExcel, exportToPDF, printDemandList, customConfirm, availableGroups, handleToggleGroupActive,  activeTab, kpiData, filteredRequests, viewMode, currentPendingIndex, setCurrentPendingIndex, handleApprove, handleReject, handleForward, rejectingId, setRejectingId, rejectReason, setRejectReason, currentUserRole, inventoryItems, selectedInventoryMachine, setSelectedInventoryMachine, uniqueInventoryMachines, inventoryLoading, handleReceive, editingRowId, setEditingRowId, editFormData, setEditFormData, handleSaveInlineEdit, handlePartNameChange, handleSkuChange, searchQuery, setSearchQuery, selectedMachine, setSelectedMachine, selectedVendor, setSelectedVendor, uniqueMachines, uniqueVendors, whatsappStatus, whatsappGroups, setWhatsappGroups, fetchWhatsappStatus, fetchWhatsappGroups, showCustomDemandModal, setShowCustomDemandModal, customDemandData, setCustomDemandData, submitCustomDemand, globalModal, setGlobalModal, handleClearFilters, filteredInventory, hasNoActiveGroups, setActiveTab, pendingRequests, apiLimitCount, apiLimitMax, setCurrentUserRole, setViewMode, fetchData, refreshing, setRefreshing, globalUniquePartNames, globalUniqueMaterials, globalUniqueMachines, globalUniqueVendors, globalUniqueSKUs, globalUniqueRegNos, globalUniqueSizes, handleCustomDemandPartNameChange, handleCustomDemandSkuChange, handleCustomDemandRegNoChange };
+  const dashboardProps = { loading, voiceNotes, exportStartDate, setExportStartDate, exportEndDate, setExportEndDate, exportToExcel, exportToPDF, printDemandList, customConfirm, availableGroups, handleToggleGroupActive,  activeTab, kpiData, filteredRequests, viewMode, currentPendingIndex, setCurrentPendingIndex, handleApprove, handleReject, handleForward, rejectingId, setRejectingId, rejectReason, setRejectReason, currentUserRole, inventoryItems, selectedInventoryMachine, setSelectedInventoryMachine, uniqueInventoryMachines, inventoryLoading, handleReceive, editingRowId, setEditingRowId, editFormData, setEditFormData, handleSaveInlineEdit, inventoryEditingId, setInventoryEditingId, inventoryEditFormData, setInventoryEditFormData, handleSaveInventoryEdit, showInventoryEditModal, setShowInventoryEditModal, handlePartNameChange, handleSkuChange, searchQuery, setSearchQuery, selectedMachine, setSelectedMachine, selectedVendor, setSelectedVendor, selectedStatus, setSelectedStatus, uniqueMachines, uniqueVendors, whatsappStatus, whatsappGroups, setWhatsappGroups, fetchWhatsappStatus, fetchWhatsappGroups, showCustomDemandModal, setShowCustomDemandModal, customDemandData, setCustomDemandData, submitCustomDemand, globalModal, setGlobalModal, handleClearFilters, filteredInventory, hasNoActiveGroups, setActiveTab, pendingRequests, apiLimitCount, apiLimitMax, setCurrentUserRole, setViewMode, fetchData, refreshing, setRefreshing, globalUniquePartNames, globalUniqueMaterials, globalUniqueMachines, globalUniqueVendors, globalUniqueSKUs, globalUniqueRegNos, globalUniqueSizes, globalUniqueUnits, handleCustomDemandPartNameChange, handleCustomDemandSkuChange, handleCustomDemandRegNoChange };
   return (
     <>
       {currentUserRole === 'observer' && <ManagerDashboard {...dashboardProps} />}

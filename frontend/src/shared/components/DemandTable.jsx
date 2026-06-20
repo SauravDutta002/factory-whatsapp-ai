@@ -1,5 +1,7 @@
 import React from 'react';
-import { FiRefreshCw } from 'react-icons/fi';
+import { FiRefreshCw, FiCheck, FiX, FiEdit2 } from 'react-icons/fi';
+import { standardizeUnit, displayQty, displayUnit } from '../../utils/unitStandardizer';
+import MultiTagInput from './MultiTagInput';
 
 export default function DemandTable(props) {
   const { filteredRequests, editingRowId, activeTab, currentUserRole, inventoryItems, editFormData, setEditFormData, handleSaveInlineEdit, setEditingRowId, handleReceive, handleReject, handleApprove, handleForward, rejectingId, setRejectingId, rejectReason, setRejectReason } = props;
@@ -49,6 +51,11 @@ export default function DemandTable(props) {
     ...inventoryItems.map(i => i.machine)
   ].filter(Boolean))).sort();
 
+  const uniqueCategories = Array.from(new Set([
+    editFormData?.category,
+    ...inventoryItems.map(i => i.category)
+  ].filter(Boolean))).sort();
+
   const uniqueVendors = Array.from(new Set([
     editFormData?.vendor,
     ...inventoryItems.map(i => i.vendor)
@@ -67,6 +74,7 @@ export default function DemandTable(props) {
         regNo: matched.regNo || '',
         size: matched.size !== '—' ? (matched.size || prev.size) : prev.size,
         material: matched.material !== '—' ? (matched.material || prev.material) : prev.material,
+        category: matched.category !== '—' ? (matched.category || prev.category) : prev.category,
         machine: matched.machine !== 'General Compatibility' ? (matched.machine || prev.machine) : prev.machine,
         vendor: matched.vendor !== '—' ? (matched.vendor || prev.vendor) : prev.vendor,
         price: matched.price || prev.price,
@@ -89,6 +97,7 @@ export default function DemandTable(props) {
         regNo: matched.regNo || '',
         size: matched.size !== '—' ? (matched.size || prev.size) : prev.size,
         material: matched.material !== '—' ? (matched.material || prev.material) : prev.material,
+        category: matched.category !== '—' ? (matched.category || prev.category) : prev.category,
         machine: matched.machine !== 'General Compatibility' ? (matched.machine || prev.machine) : prev.machine,
         vendor: matched.vendor !== '—' ? (matched.vendor || prev.vendor) : prev.vendor,
         price: matched.price || prev.price,
@@ -111,6 +120,7 @@ export default function DemandTable(props) {
         sku: matched.sku || '',
         size: matched.size !== '—' ? (matched.size || prev.size) : prev.size,
         material: matched.material !== '—' ? (matched.material || prev.material) : prev.material,
+        category: matched.category !== '—' ? (matched.category || prev.category) : prev.category,
         machine: matched.machine !== 'General Compatibility' ? (matched.machine || prev.machine) : prev.machine,
         vendor: matched.vendor !== '—' ? (matched.vendor || prev.vendor) : prev.vendor,
         price: matched.price || prev.price,
@@ -134,6 +144,7 @@ export default function DemandTable(props) {
             <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Unit</th>
             <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Size Specs</th>
             <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Material</th>
+            <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Category</th>
             <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Machine</th>
             <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Vendor</th>
             <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Requested By</th>
@@ -247,13 +258,13 @@ export default function DemandTable(props) {
                     <input 
                       type="text"
                       value={editFormData.qty}
-                      onChange={(e) => setEditFormData({ ...editFormData, qty: e.target.value })}
+                      onChange={(e) => setEditFormData({ ...editFormData, qty: e.target.value.replace(/[^\d.]/g, '') })}
                       placeholder="Qty"
                       className="filter-select"
                       style={{ width: '60px', padding: '0.35rem 0.6rem', fontSize: '0.85rem' }}
                     />
                   ) : (
-                    item.qty || '—'
+                    displayQty(item.qty, item.unit) || '—'
                   )}
                 </td>
 
@@ -265,12 +276,13 @@ export default function DemandTable(props) {
                       list="inventory-units-list"
                       value={editFormData.unit || ''}
                       onChange={(e) => setEditFormData({ ...editFormData, unit: e.target.value })}
+                      onBlur={(e) => setEditFormData({ ...editFormData, unit: standardizeUnit(e.target.value) })}
                       placeholder="Unit"
                       className="filter-select"
                       style={{ width: '70px', padding: '0.35rem 0.6rem', fontSize: '0.85rem' }}
                     />
                   ) : (
-                    item.unit || '—'
+                    displayUnit(item.qty, item.unit) || '—'
                   )}
                 </td>
 
@@ -307,30 +319,59 @@ export default function DemandTable(props) {
                   )}
                 </td>
 
-                {/* Machine */}
+                {/* Category */}
                 <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>
                   {isEditingRow ? (
                     <input 
                       type="text"
+                      list="inventory-categories-list"
+                      value={editFormData.category}
+                      onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
+                      placeholder="Category"
+                      className="filter-select"
+                      style={{ width: '130px', padding: '0.35rem 0.6rem', fontSize: '0.85rem', textTransform: 'capitalize' }}
+                    />
+                  ) : (
+                    <span style={{ textTransform: 'capitalize' }}>{item.category || '—'}</span>
+                  )}
+                </td>
+
+                {/* Machine */}
+                <td style={{ padding: '1rem 1.25rem', color: 'var(--text-secondary)' }}>
+                  {isEditingRow ? (
+                    <MultiTagInput 
+                      name="machine"
                       list="inventory-machines-list"
                       value={editFormData.machine}
                       onChange={(e) => setEditFormData({ ...editFormData, machine: e.target.value })}
                       placeholder="Machine"
-                      className="filter-select"
-                      style={{ width: '160px', padding: '0.35rem 0.6rem', fontSize: '0.85rem' }}
+                      options={uniqueMachines}
+                      style={{ width: '160px' }}
                     />
                   ) : (
-                    <span style={{ 
-                      display: 'inline-block',
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '6px',
-                      fontSize: '0.8rem',
-                      fontWeight: 500,
-                      backgroundColor: '#f1f5f9',
-                      color: 'var(--text-primary)'
-                    }}>
-                      {item.machine || 'General'}
-                    </span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      {(item.machine || 'General').split(',').map(m => m.trim()).filter(Boolean).map((mac, idx) => (
+                        <span key={idx} style={{ 
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          backgroundColor: 'var(--accent-blue-bg)',
+                          color: 'var(--accent-blue-text)',
+                          border: '1px solid #bfdbfe',
+                          lineHeight: 1
+                        }}>
+                          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ width: '12px', height: '12px' }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          {mac}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </td>
 
@@ -414,11 +455,12 @@ export default function DemandTable(props) {
                             setEditingRowId(item.id);
                             setEditFormData({
                               partName: item.partName || '',
-                              qty: item.qty || '',
-                              unit: item.unit || '',
+                              qty: displayQty(item.qty, item.unit),
+                              unit: displayUnit(item.qty, item.unit),
                               size: item.size || '',
                               material: item.material || '',
                               machine: item.machine || '',
+                              category: item.category || '',
                               vendor: item.vendor || '',
                               price: item.price || item.rate || ''
                             });
@@ -439,6 +481,7 @@ export default function DemandTable(props) {
                                 size: item.size,
                                 material: item.material,
                                 machine: item.machine,
+                                category: item.category,
                                 vendor: item.vendor,
                                 price: item.price || item.rate
                               })}
@@ -466,6 +509,7 @@ export default function DemandTable(props) {
                                 size: item.size,
                                 material: item.material,
                                 machine: item.machine,
+                                category: item.category,
                                 vendor: item.vendor,
                                 price: item.price || item.rate
                               })}
@@ -518,6 +562,11 @@ export default function DemandTable(props) {
       <datalist id="inventory-materials-list">
         {uniqueMaterials && uniqueMaterials.map(mat => (
           <option key={mat} value={mat} />
+        ))}
+      </datalist>
+      <datalist id="inventory-categories-list">
+        {uniqueCategories && uniqueCategories.map(cat => (
+          <option key={cat} value={cat} />
         ))}
       </datalist>
     </>

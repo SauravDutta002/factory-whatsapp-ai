@@ -1,6 +1,7 @@
 const fs = require('fs');
 const genAI = require('../config/gemini');
 const pool = require('../config/db');
+const standardizeUnit = require('../utils/unitStandardizer');
 
 // Gemini API Rate Limit Tracker (15 RPM Free Tier limit)
 let geminiRequestTimestamps = [];
@@ -159,7 +160,8 @@ ${inventoryContext}
 For EACH item extract:
 - Part Name (The exact name the worker asked for, translated to English)
 - SKU (blank if not matched)
-- Qty Required (plain number only, e.g., "1", "20")
+- Qty Required (strictly a plain number only, NO units, e.g., "1", "20.5")
+- Unit (extract the unit separately, e.g., "pcs", "meter", "kg", "box". Blank if not matched/specified)
 - Size (use detail1/detail2 format from inventory if matched)
 - Material
 - Category (blank if not matched)
@@ -174,7 +176,7 @@ Rules:
 - If Vendor is mentioned once for multiple items, apply it to ALL items
 - If "For Machine" is mentioned once for multiple items, apply it to ALL items
 - If Size or Material is not mentioned, leave it empty
-- Qty should be just the number (e.g. "1", "20", "12")
+- CRITICAL: "Qty Required" must be STRICTLY numeric. Do NOT include any units in this field.
 - CRITICAL: If the ${mediaType} is empty, ${isAudio ? 'just background noise, ' : ''}gibberish, or does NOT explicitly request a factory machine part, tool, or material, you MUST return an empty JSON array: []
 
 Return ONLY a raw JSON array with NO markdown, NO code fences, NO explanation.
@@ -184,6 +186,7 @@ Example format:
     "Part Name": "",
     "SKU": "",
     "Qty Required": "",
+    "Unit": "",
     "Size": "",
     "Material": "",
     "Category": "",
@@ -204,6 +207,7 @@ function makeFallbackItem(raw) {
         "Part Name": raw,
         "SKU": "",
         "Qty Required": "",
+        "Unit": "",
         "Size": "",
         "Material": "",
         "Category": "",
@@ -258,17 +262,12 @@ async function savePendingRequest(item, senderName = 'WhatsApp User') {
         const id = Date.now() + '-' + Math.floor(Math.random() * 1000);
         const receivedAt = new Date().toISOString();
 
-        const queryText = `
-            INSERT INTO pending_requests (
-                id, part_name, qty, size, material, machine, vendor, requested_by, 
-                demand_timestamp, received_at, rate, status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, $11)
-        `;
+        // Query text and values are generated below
 
         const values = [
             id,
             item["Part Name"] || item.partName || '',
-            item["Qty Required"] || item.qty || '',
+            String(item["Qty Required"] || item.qty || '').replace(/[^\d.]/g, ''),
             item["Size"] || item.size || '',
             item["Material"] || item.material || '',
             item["For Machine"] || item.machine || '',
@@ -278,6 +277,17 @@ async function savePendingRequest(item, senderName = 'WhatsApp User') {
             item["Price"] || item.price || '',
             'pending_review'
         ];
+
+        // Ensure we add the unit field as the 12th value, assuming unit column exists
+        // We'll update the query if needed, wait, the query in savePendingRequest needs to include unit!
+        const queryText = `
+            INSERT INTO pending_requests (
+                id, part_name, qty, size, material, machine, vendor, requested_by, 
+                demand_timestamp, received_at, rate, status, unit
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, $11, $12)
+        `;
+        
+        values.push(standardizeUnit(item["Unit"] || item.unit || ''));
 
         console.log('--- SQL DIRECT BOT INSERTION ---');
         console.log('Parameters:', JSON.stringify(values, null, 2));
