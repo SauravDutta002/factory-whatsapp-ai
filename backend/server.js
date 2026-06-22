@@ -174,6 +174,19 @@ async function ensureWhatsappGroupsTable() {
     }
 }
 
+async function ensurePendingRequestsColumns() {
+    try {
+        await pool.query('ALTER TABLE pending_requests ADD COLUMN IF NOT EXISTS unit VARCHAR(50);');
+        await pool.query('ALTER TABLE pending_requests ADD COLUMN IF NOT EXISTS sku VARCHAR(100);');
+        await pool.query('ALTER TABLE pending_requests ADD COLUMN IF NOT EXISTS category VARCHAR(100);');
+        await pool.query('ALTER TABLE pending_requests ADD COLUMN IF NOT EXISTS price VARCHAR(100);');
+        await pool.query('ALTER TABLE pending_requests ADD COLUMN IF NOT EXISTS reg_no VARCHAR(100);');
+        console.log('Pending requests columns verified/added successfully.');
+    } catch (err) {
+        console.error('Error verifying pending requests columns:', err);
+    }
+}
+
 // =============================================================================
 // WhatsApp Bot & AI Helper Functions
 // =============================================================================
@@ -1204,6 +1217,25 @@ app.post('/api/pending/:id/reject', async (req, res) => {
     }
 });
 
+// POST Mark a pending request as received (status = 'received')
+app.post('/api/pending/:id/receive', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await pool.query("UPDATE pending_requests SET status = 'received' WHERE id = $1 RETURNING part_name", [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Pending request not found' });
+        }
+
+        console.log('Marked request as received in DB:', result.rows[0].part_name);
+        if (global.io) global.io.emit('dashboard_update');
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error receiving request:', err);
+        res.status(500).json({ error: 'Failed to receive pending request' });
+    }
+});
+
 // -----------------------------------------------------------------------------
 // Live Inventory API Endpoints
 // -----------------------------------------------------------------------------
@@ -1887,6 +1919,7 @@ httpServer.listen(PORT, async () => {
 
     // Ensure whatsapp_groups table exists
     await ensureWhatsappGroupsTable();
+    await ensurePendingRequestsColumns();
 
     // Start WhatsApp Bot Singleton in the same process!
     console.log('Initializing WhatsApp Client singleton...');

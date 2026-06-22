@@ -72,6 +72,7 @@ async function dbInit() {
         edited_by VARCHAR(255),
         edited_at TIMESTAMP WITH TIME ZONE,
         forwarded_at TIMESTAMP WITH TIME ZONE,
+        unit VARCHAR(50),
         sku VARCHAR(100),
         category VARCHAR(100),
         price VARCHAR(100),
@@ -81,6 +82,14 @@ async function dbInit() {
       );
     `);
     console.log('Table "pending_requests" verified.');
+
+    await client.query(`
+      ALTER TABLE pending_requests ADD COLUMN IF NOT EXISTS unit VARCHAR(50);
+      ALTER TABLE pending_requests ADD COLUMN IF NOT EXISTS sku VARCHAR(100);
+      ALTER TABLE pending_requests ADD COLUMN IF NOT EXISTS category VARCHAR(100);
+      ALTER TABLE pending_requests ADD COLUMN IF NOT EXISTS price VARCHAR(100);
+      ALTER TABLE pending_requests ADD COLUMN IF NOT EXISTS reg_no VARCHAR(100);
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS whatsapp_groups (
